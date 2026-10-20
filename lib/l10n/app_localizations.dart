@@ -395,14 +395,8 @@ abstract class AppLocalizations {
   /// No description provided for @norgGuide.
   ///
   /// In en, this message translates to:
-  /// **'Norg guide'**
+  /// **'Neorg help page'**
   String get norgGuide;
-
-  /// No description provided for @guideAsset.
-  ///
-  /// In en, this message translates to:
-  /// **'assets/guide.norg'**
-  String get guideAsset;
 
   /// No description provided for @importConfig.
   ///
@@ -625,6 +619,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System'**
   String get systemLanguage;
+
+  /// No description provided for @norgCheatsheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Neorg guide'**
+  String get norgCheatsheet;
 }
 
 class _AppLocalizationsDelegate

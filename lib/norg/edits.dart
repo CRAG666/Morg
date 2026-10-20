@@ -13,13 +13,17 @@ const _statusChars = {
 const _order = [TodoStatus.undone, TodoStatus.done, TodoStatus.pending];
 const _orderWithChildren = [TodoStatus.undone, TodoStatus.done];
 
-final _detachedPrefix = RegExp(r'(\s*(?:\*+|-+|~+)\s+)(\(([^)]*)\)\s+)?');
+final _detachedPrefix = RegExp(
+  r'(\s*(?:\*+|-+|~+|\$\$?|\^\^?)\s+)(\(([^)]*)\)\s+)?',
+);
 final _updatedField = RegExp(r'^(\s*updated\s*:\s*).*$');
 
 String cycleTodo(String source, List<Block> blocks, int line) {
   final lines = source.split('\n');
   switch (_locate(blocks, line)) {
-    case Heading(:final status):
+    case Heading(:final status) ||
+        Definition(task: TaskExtension(:final status)?) ||
+        Footnote(task: TaskExtension(:final status)?):
       lines[line] = _withStatus(lines[line], _next(_order, status));
     case (List<ListItem> items, int index):
       _cycleListItem(lines, items, index);
@@ -33,6 +37,7 @@ Object? _locate(List<Block> blocks, int line) {
   for (final block in blocks) {
     final found = switch (block) {
       Heading() when block.line == line => block,
+      Definition() || Footnote() when block.range.start == line => block,
       Heading(children: final nested) ||
       RangedBlock(children: final nested) ||
       Definition(content: final nested) ||

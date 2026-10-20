@@ -116,10 +116,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _push(DocumentScreen.memory(source, name: file.name));
   }
 
-  Future<void> _openGuide() async {
-    final asset = context.l10n.guideAsset;
-    final source = await rootBundle.loadString(asset);
-    _push(DocumentScreen.memory(source, name: 'guide'));
+  Future<void> _openDocs(String document) async {
+    final docs = {
+      for (final name in ['neorg.norg', 'cheatsheet.norg'])
+        name: await rootBundle.loadString('assets/docs/$name'),
+    };
+    _push(DocumentScreen(note: NoteRef(MemoryStore('Neorg', docs), document)));
   }
 
   Future<String?> _pickFolder({String? initialUri}) async {
@@ -393,7 +395,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ListTile(
             leading: const Icon(Icons.menu_book),
             title: Text(context.l10n.norgGuide),
-            onTap: _openGuide,
+            onTap: () => _openDocs('neorg.norg'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bolt),
+            title: Text(context.l10n.norgCheatsheet),
+            onTap: () => _openDocs('cheatsheet.norg'),
           ),
         ],
       ),

@@ -135,8 +135,7 @@
   "openFile": "Open file…",
   "pickNorgFile": "Open a Norg file",
   "alsoFromCloud": "Also from the cloud",
-  "norgGuide": "Norg guide",
-  "guideAsset": "assets/guide.norg",
+  "norgGuide": "Neorg help page",
   "importConfig": "Import configuration",
   "importConfigSubtitle": "Replace morg.json with a file, e.g. from your synced notes",
   "pickConfigFile": "Configuration file (morg.json)",
@@ -187,5 +186,6 @@
   "advanced": "Advanced",
   "defaultSetting": "Default",
   "language": "Language",
-  "systemLanguage": "System"
+  "systemLanguage": "System",
+  "norgCheatsheet": "Quick Neorg guide"
 }

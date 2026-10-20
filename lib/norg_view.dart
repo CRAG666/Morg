@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:jovial_svg/jovial_svg.dart';
 import 'package:re_highlight/re_highlight.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,27 +13,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'config/concealer_config.dart';
 import 'highlight/languages.dart';
 import 'norg/ast.dart';
+import 'norg/targets.dart';
 import 'raw_highlight.dart';
 import 'settings.dart';
 import 'source_editor.dart';
 import 'theme/norg_theme.dart';
 import 'l10n/l10n.dart';
-
-String plainText(List<Inline> nodes) => nodes
-    .map(
-      (node) => switch (node) {
-        TextInline(:final text) || VerbatimInline(:final text) => text,
-        StyledInline(children: final nested) ||
-        AnchorInline(description: final nested) => plainText(nested),
-        LinkInline(:final target, :final description) =>
-          description.isEmpty ? _linkLabel(target) : plainText(description),
-      },
-    )
-    .join();
-
-String _linkLabel(String target) =>
-    linkLocation.firstMatch(target)?[2] ??
-    target.replaceAll(RegExp(r'^:|:$'), '');
 
 Iterable<Heading> _headings(List<Block> blocks) sync* {
   for (final block in blocks) {
@@ -100,7 +89,7 @@ class NorgDocumentView extends StatefulWidget {
     this.onEdit,
     this.onLink,
     this.onTodoTap,
-    this.resolveImage,
+    this.buildImage,
     this.initialLocation,
   });
 
@@ -109,7 +98,7 @@ class NorgDocumentView extends StatefulWidget {
   final Future<void> Function(SourceRange range, String text)? onEdit;
   final ValueChanged<String>? onLink;
   final ValueChanged<int>? onTodoTap;
-  final ImageProvider? Function(String path)? resolveImage;
+  final Widget? Function(String path)? buildImage;
   final String? initialLocation;
 
   @override
@@ -120,6 +109,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   final _collapsed = <int>{};
   final _recognizers = <Object, TapGestureRecognizer>{};
   late List<String> _lines = widget.source.split('\n');
+  late DocumentTargets _targets = DocumentTargets(widget.blocks);
   int? _revealed;
   final _highlighted = <(CodeBlock, Brightness), TextSpan?>{};
   final _scrollController = ScrollController();
@@ -146,6 +136,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       _rows = null;
       _revealed = null;
       _lines = widget.source.split('\n');
+      _targets = DocumentTargets(widget.blocks);
       _highlighted.clear();
     }
   }
@@ -260,11 +251,21 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
                     item,
                     ordinal,
                   ),
-                  _BlockRow(:final block) => _block(block, _base),
+                  _BlockRow(:final block) => _taggedBlock(block),
                 },
               ),
       ),
     );
+  }
+
+  Widget _taggedBlock(Block block) {
+    if (!block.tags.any((tag) => tag.name == 'comment')) {
+      return _block(block, _base);
+    }
+    final comment = _hl('@neorg.tags.comment.content');
+    return block is Paragraph
+        ? _block(block, comment)
+        : Opacity(opacity: 0.6, child: _block(block, comment));
   }
 
   List<Widget> _blocks(List<Block> blocks, [TextStyle? paragraphStyle]) => [
@@ -301,6 +302,8 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       group: '@neorg.definitions',
       title: block.term,
       content: block.content,
+      task: block.task,
+      line: block.range.start,
     ),
     Footnote() => _rangeable(
       prefix: block.ranged ? _icons.footnoteMultiPrefix : _icons.footnoteSingle,
@@ -308,17 +311,19 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       group: '@neorg.footnotes',
       title: [TextInline(block.title)],
       content: block.content,
+      task: block.task,
+      line: block.range.start,
     ),
     RangedBlock() => _ranged(block),
     InfirmTag(name: 'toc') => _tableOfContents(),
     InfirmTag(name: 'image', :final params)
-        when widget.resolveImage?.call(params) != null =>
-      Image(
-        image: widget.resolveImage!(params)!,
-        alignment: Alignment.centerLeft,
-        errorBuilder: (context, error, _) =>
-            Text('.image $params — $error', style: _hl('@neorg.error')),
-      ),
+        when widget.buildImage?.call(params) != null =>
+      Align(alignment: Alignment.centerLeft, child: widget.buildImage!(params)),
+    MathBlock(:final tex) => SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: _math(tex, MathStyle.display, _base),
+    ),
+    ImageBlock() => _embeddedImage(block),
     InfirmTag(:final name, :final params) => Text.rich(
       TextSpan(
         children: [
@@ -382,7 +387,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
                 ? null
                 : _recognizer(('fold', line), () => _toggle(line)),
           ),
-          if (heading.status case final status?) ..._todoSpans(status, line),
+          if (heading.task case final task?) ..._taskSpans(task, line),
           _spans(heading.title, titleStyle),
           if (_collapsed.contains(line))
             TextSpan(
@@ -395,16 +400,26 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
-  List<InlineSpan> _todoSpans(TodoStatus status, int line) => [
-    TextSpan(
-      text: '(${_icons.todoIcons[status]})',
-      style: _hl('@neorg.todo_items.${todoGroups[status]}'),
-      recognizer: widget.onTodoTap == null
-          ? null
-          : _recognizer(('todo', line), () => widget.onTodoTap?.call(line)),
-    ),
-    const TextSpan(text: ' '),
-  ];
+  List<InlineSpan> _taskSpans(TaskExtension task, int? line) {
+    final status = task.status;
+    final segments = [
+      if (status != null) _icons.todoIcons[status]!,
+      ...task.details,
+    ];
+    final tappable = status != null && line != null && widget.onTodoTap != null;
+    return [
+      TextSpan(
+        text: '(${segments.join('|')})',
+        style: _hl(
+          '@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}',
+        ),
+        recognizer: tappable
+            ? _recognizer(('todo', line), () => widget.onTodoTap?.call(line))
+            : null,
+      ),
+      const TextSpan(text: ' '),
+    ];
+  }
 
   Widget _list(ListBlock list) => _column([
     for (final (index, ordinal) in _ordinals(list.items).indexed)
@@ -440,8 +455,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
           child: Text.rich(
             TextSpan(
               children: [
-                if (item.status case final status?)
-                  ..._todoSpans(status, item.line),
+                if (item.task case final task?) ..._taskSpans(task, item.line),
                 _spans(item.content, _base),
               ],
             ),
@@ -462,7 +476,15 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
           ),
           Expanded(
             child: Text.rich(
-              _spans(line.content, _hl('@neorg.quotes.${line.level}.content')),
+              TextSpan(
+                children: [
+                  if (line.task case final task?) ..._taskSpans(task, null),
+                  _spans(
+                    line.content,
+                    _hl('@neorg.quotes.${line.level}.content'),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -502,8 +524,37 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
+  Widget _math(String tex, MathStyle mathStyle, TextStyle style) => Math.tex(
+    tex,
+    mathStyle: mathStyle,
+    textStyle: style,
+    onErrorFallback: (_) => Text(tex, style: _hl('@neorg.error', style)),
+  );
+
+  Widget _embeddedImage(ImageBlock image) {
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(image.data);
+    } on FormatException {
+      return Text('@image ${image.format}', style: _hl('@neorg.error'));
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: image.format == 'svg'
+          ? svgFromBytes(bytes)
+          : Image.memory(
+              bytes,
+              errorBuilder: (context, error, _) =>
+                  Text('$error', style: _hl('@neorg.error')),
+            ),
+    );
+  }
+
   TextSpan? _highlight(CodeBlock code) {
     final language = code.language;
+    if (language == 'norg') {
+      return RawHighlighter(_theme, _base).highlight(code.code);
+    }
     if (language == null || codeHighlighter.getLanguage(language) == null) {
       return null;
     }
@@ -557,11 +608,14 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     required String group,
     required List<Inline> title,
     required List<Block> content,
+    required TaskExtension? task,
+    required int line,
   }) => _column([
     Text.rich(
       TextSpan(
         children: [
           TextSpan(text: '$prefix ', style: _hl('$group.prefix')),
+          if (task != null) ..._taskSpans(task, line),
           _spans(title, _hl('$group.title')),
         ],
       ),
@@ -642,7 +696,8 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   );
 
   InlineSpan _inline(Inline node, TextStyle style) => switch (node) {
-    TextInline(:final text) => TextSpan(text: text),
+    TextInline(:final text) ||
+    TargetInline(:final text) => TextSpan(text: text),
     StyledInline(style: InlineStyle.spoiler, :final children) => TextSpan(
       text: _icons.spoiler * plainText(children).length,
       style: _hl('@neorg.markup.spoiler', style),
@@ -656,6 +711,16 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       children,
       _hl('@neorg.markup.${kind.name}', style),
     ),
+    VerbatimInline(kind: VerbatimKind.math, :final text) => WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: _math(
+        node.end - node.start - text.length == 4
+            ? text
+            : text.replaceAll(r'\\', r'\'),
+        MathStyle.text,
+        _hl('@neorg.markup.inline_math', style),
+      ),
+    ),
     VerbatimInline(:final kind, :final text) => TextSpan(
       text: text,
       style: _hl(switch (kind) {
@@ -665,10 +730,12 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
         VerbatimKind.comment => '@neorg.markup.inline_comment',
       }, style),
     ),
-    AnchorInline(:final description) => _spans(
+    AnchorInline(:final description) => switch (_targets.anchorTarget(
       description,
-      _hl('@neorg.anchors.declaration', style),
-    ),
+    )) {
+      final target? => _link(target, description, style),
+      null => _spans(description, _hl('@neorg.anchors.declaration', style)),
+    },
     LinkInline(:final target, :final description) => _link(
       target,
       description,
@@ -699,7 +766,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       TextSpan(
         style: linkStyle,
         children: description.isEmpty
-            ? [TextSpan(text: _linkLabel(target))]
+            ? [TextSpan(text: linkLabel(target))]
             : [for (final node in description) _inline(node, linkStyle)],
       ),
       recognizer,
@@ -722,7 +789,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       };
 
   Future<void> _followLink(String target) async {
-    if (_headingFor(target) != null) return _jumpTo(target);
+    if (_targets.lineOf(target) != null) return _jumpTo(target);
     if (widget.onLink case final onLink?) return onLink(target);
     if (Uri.tryParse(target) case final uri? when uri.hasScheme) {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -734,8 +801,8 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   void _jumpTo(String location) {
-    final heading = _headingFor(location);
-    if (heading == null) {
+    final line = _targets.lineOf(location);
+    if (line == null) {
       _notify((l10n) => l10n.notFound(location));
       return;
     }
@@ -744,11 +811,10 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       _rows = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final index = _visibleRows.indexWhere(
-        (row) => row is _HeadingRow && row.heading.line == heading.line,
-      );
+      final rows = _visibleRows;
+      final index = rows.indexWhere((row) => row.range.end > line);
       _listController.animateToItem(
-        index: index,
+        index: index < 0 ? rows.length - 1 : index,
         scrollController: _scrollController,
         alignment: 0,
         duration: (_) => const Duration(milliseconds: 300),
@@ -757,28 +823,25 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     });
   }
 
-  Heading? _headingFor(String target) {
-    final match = linkLocation.firstMatch(target);
-    if (match == null) return null;
-    final marker = match[1]!;
-    final title = _comparable(match[2]!);
-    for (final heading in _headings(widget.blocks)) {
-      final levelMatches = marker.startsWith('*')
-          ? marker.length == heading.level
-          : marker == '#';
-      if (levelMatches && _comparable(plainText(heading.title)) == title) {
-        return heading;
-      }
-    }
-    return null;
-  }
-
-  String _comparable(String title) =>
-      title.replaceAll(RegExp(r'[\s\\]'), '').toLowerCase();
-
   void _notify(String Function(AppLocalizations l10n) message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message(context.l10n))));
   }
 }
+
+const _svgBounds = BoxConstraints(maxHeight: 300);
+
+Widget svgFromBytes(Uint8List bytes) => ConstrainedBox(
+  constraints: _svgBounds,
+  child: ScalableImageWidget(
+    si: ScalableImage.fromSvgString(utf8.decode(bytes)),
+  ),
+);
+
+Widget svgFromUrl(String url) => ConstrainedBox(
+  constraints: _svgBounds,
+  child: ScalableImageWidget.fromSISource(
+    si: ScalableImageSource.fromSvgHttpUrl(Uri.parse(url)),
+  ),
+);

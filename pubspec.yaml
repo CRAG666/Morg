@@ -1,7 +1,7 @@
 name: morg
 description: "Mobile viewer and editor for Norg (Neorg) notes."
 publish_to: 'none'
-version: 0.3.1+5
+version: 0.4.0+6
 
 environment:
   sdk: ^3.13.5
@@ -12,7 +12,9 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_math_fork: ^0.7.4
   intl: any
+  jovial_svg: ^1.1.31
   open_filex: ^5.0.0
   path: ^1.9.1
   path_provider: ^2.1.6
@@ -34,8 +36,7 @@ flutter:
   generate: true
 
   assets:
-    - assets/guide.norg
-    - assets/guia.norg
+    - assets/docs/
     - assets/config/
     - assets/themes/
 

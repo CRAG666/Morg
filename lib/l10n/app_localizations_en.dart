@@ -183,10 +183,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alsoFromCloud => 'Also from the cloud';
 
   @override
-  String get norgGuide => 'Norg guide';
-
-  @override
-  String get guideAsset => 'assets/guide.norg';
+  String get norgGuide => 'Neorg help page';
 
   @override
   String get importConfig => 'Import configuration';
@@ -305,4 +302,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get systemLanguage => 'System';
+
+  @override
+  String get norgCheatsheet => 'Quick Neorg guide';
 }

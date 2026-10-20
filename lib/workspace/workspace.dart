@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../norg/targets.dart';
 import '../settings.dart';
 import 'store.dart';
 
 final _envVariable = RegExp(r'\$([A-Za-z0-9_]+)');
 final _lineSuffix = RegExp(r'^(.*):(\d+)$');
-final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 
 bool isContentUri(String path) => path.startsWith('content://');
 
@@ -108,7 +108,7 @@ class Workspaces {
     if (Uri.tryParse(target) case final uri? when uri.hasScheme) {
       return UrlTarget(uri);
     }
-    if (_linkLocation.hasMatch(target)) return LocalTarget(target);
+    if (linkLocation.hasMatch(target)) return LocalTarget(target);
     return UnsupportedTarget(target);
   }
 

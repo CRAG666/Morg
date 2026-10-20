@@ -25,15 +25,18 @@
 ## Features
 
 - **Norg parser written in Dart**: headings, lists, quotes, TODO states, definitions, footnotes, ranged and
-  verbatim tags (`@code`, `@table`, `@document.meta`, `|details`, `|comment`), infirm tags (`.toc`, `.image`),
-  delimiters, and all inline markup, including link and free-form modifiers.
+  verbatim tags (`@code`, `@table`, `@math`, `@image`, `@document.meta`, `|details`, `|comment`), infirm tags
+  (`.toc`, `.image`, including SVG), carryover tags (`#name`, `#comment`), task extensions with priorities and
+  dates on every detached modifier, delimiters, and all inline markup, including link and free-form modifiers.
+- **LaTeX math**: inline `$…$` and `@math` blocks are typeset, not shown as source.
 - **Faithful to `core.concealer`**: the same icons, ordered-list formats and TODO glyphs as neorg, and the colors
   of *your* Neovim colorscheme (export it with one command, see [Themes](#themes)).
 - **Configured like neorg**: `morg.json` has the same structure as `require("neorg").setup()`
   (`core.concealer`, `core.dirman`, `core.esupports.metagen`, `core.journal`).
 - **Workspaces**: local folders (for example synced with Syncthing) and cloud folders through Android's Storage
   Access Framework (Nextcloud, OneDrive, …). Links resolve like `core.esupports.hop`: `$/`, `$name/`, `~/`,
-  absolute and relative paths, `{* Heading}`, `{# generic}`, `{/ external.pdf}` and URLs.
+  absolute and relative paths, `{* Heading}`, `{$ definition}`, `{^ footnote}`, `{# generic}` (also `#name`
+  tags and `<targets>`), anchors (`[name]`), `{/ external.pdf}`, `file://` and URLs.
 - **Edit in place, like `conceallevel=2`**: tap any element and only that element shows its raw Norg source,
   still highlighted (delimiters dimmed like Neovim's insert mode), ready to edit; tap elsewhere to save.
   Tap a heading icon to fold it.
@@ -43,6 +46,8 @@
   like `:Neorg workspace`.
 - **Blazing fast**: a linear-time parser (~65 MiB/s) and a virtualized document view that only builds what is
   on screen, no matter how long the note is.
+- **Neorg's own documentation built in**: the home screen opens the Neorg help page and the quick Norg guide
+  (cheatsheet) shipped with neorg, rendered by Morg.
 - English and Spanish interface, chosen in **Settings → Language** (follows the system by default).
 
 ## Install
@@ -160,7 +165,7 @@ lib/
   workspace/       note stores (local files and Android SAF) and link resolution
   l10n/            translations
   *_screen.dart    home, workspace browser, document, editor and settings screens
-assets/            default config, bundled theme, fonts, guides and icon sources
+assets/            default config, bundled theme, fonts, Neorg docs and icon sources
 tool/              Neovim theme exporter and parser benchmark
 ```
 
@@ -176,8 +181,10 @@ repository secrets.
 ## Acknowledgements
 
 - [Neorg](https://github.com/nvim-neorg/neorg) and the [Norg specification](https://github.com/nvim-neorg/norg-specs).
+  `assets/docs/neorg.norg` and `assets/docs/cheatsheet.norg` are Neorg's documentation (GPL-3.0).
 - [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL) and the
   [Nerd Fonts](https://www.nerdfonts.com) symbols (MIT); their licenses are in `assets/fonts/`.
 - [re_highlight](https://pub.dev/packages/re_highlight), [super_sliver_list](https://pub.dev/packages/super_sliver_list),
+  [flutter_math_fork](https://pub.dev/packages/flutter_math_fork), [jovial_svg](https://pub.dev/packages/jovial_svg),
   [saf_util](https://pub.dev/packages/saf_util), [saf_stream](https://pub.dev/packages/saf_stream) and the other
   packages listed in `pubspec.yaml`.

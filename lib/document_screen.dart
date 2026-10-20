@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'editor_screen.dart';
@@ -101,6 +103,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
 
   Future<void> _followTarget(LinkTarget target) async {
     switch (target) {
+      case UrlTarget(:final uri) when uri.isScheme('file') && !kIsWeb:
+        await openWithSystem(uri.toFilePath());
       case UrlTarget(:final uri):
         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
           _notify((l10n) => l10n.couldNotOpen('$uri'));
@@ -151,12 +155,20 @@ class _DocumentScreenState extends State<DocumentScreen> {
     return true;
   }
 
-  ImageProvider? _resolveImage(String path) {
+  Widget? _image(String path) {
+    final isSvg = p.extension(path).toLowerCase() == '.svg';
     if (Uri.tryParse(path) case final uri? when uri.hasScheme) {
-      return NetworkImage(path);
+      return isSvg ? svgFromUrl(path) : Image.network(path);
     }
     final ref = _workspaces.resolvePath(path, from: widget.note);
-    return ref == null ? null : StoreImage(ref);
+    if (ref == null) return null;
+    if (!isSvg) return Image(image: StoreImage(ref));
+    return FutureBuilder(
+      future: ref.store.readBytes(ref.path),
+      builder: (context, snapshot) => snapshot.hasData
+          ? svgFromBytes(snapshot.data!)
+          : const SizedBox.shrink(),
+    );
   }
 
   Future<void> _edit() => Navigator.of(context).push(
@@ -210,7 +222,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
           onEdit: editable ? _replaceLines : null,
           onLink: _openLink,
           onTodoTap: editable ? _toggleTodo : null,
-          resolveImage: _resolveImage,
+          buildImage: _image,
           initialLocation: widget.initialLocation,
         ),
       },

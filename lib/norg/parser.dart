@@ -64,8 +64,12 @@ class _BlockParser {
     final root = <Block>[];
     final openHeadings = <Heading>[];
     var blockStart = offset;
+    var pendingTags = <CarryoverTag>[];
     void add(Block block) {
-      block.range = SourceRange(blockStart, offset + pos);
+      block
+        ..range = SourceRange(blockStart, offset + pos)
+        ..tags = pendingTags;
+      pendingTags = [];
       (openHeadings.isEmpty ? root : openHeadings.last.children).add(block);
     }
 
@@ -104,17 +108,21 @@ class _BlockParser {
       }
       if (_carryoverLine.firstMatch(line) case final match?) {
         pos++;
-        if (match[1] == '.') add(InfirmTag(match[2]!, match[3]!));
+        if (match[1] == '.') {
+          add(InfirmTag(match[2]!, match[3]!));
+        } else {
+          pendingTags.add(CarryoverTag(match[2]!, match[3]!));
+        }
         continue;
       }
       if (_headingLine.firstMatch(line) case final match?) {
         pos++;
         final level = match[1]!.length.clamp(1, 6);
-        final (status, title) = _splitExtension(match[2]!);
+        final (task, title) = _splitExtension(match[2]!);
         final heading = Heading(
           level,
           parseInline(title),
-          status,
+          task,
           line: offset + pos - 1,
         );
         while (openHeadings.isNotEmpty && openHeadings.last.level >= level) {
@@ -143,6 +151,11 @@ class _BlockParser {
     final body = _collectRanged(prefix);
     return switch ((prefix, name)) {
       ('@', 'document.meta') => DocumentMeta(_metaFields(body)),
+      ('@', 'math') => MathBlock(_dedent(body)),
+      ('@', 'image') => ImageBlock(
+        params.split(RegExp(r'\s+')).first,
+        body.join().replaceAll(RegExp(r'\s'), ''),
+      ),
       ('@', 'code') => CodeBlock(
         params.split(RegExp(r'\s+')).first.nullIfEmpty,
         _dedent(body),
@@ -182,7 +195,8 @@ class _BlockParser {
     return body;
   }
 
-  Block _rangeable(String marker, String title) {
+  Block _rangeable(String marker, String text) {
+    final (task, title) = _splitExtension(text);
     final isRanged = marker.length == 2;
     final bodyStart = offset + pos;
     final content = isRanged
@@ -194,8 +208,8 @@ class _BlockParser {
               Paragraph(parseInline(_paragraphText())),
           ];
     return marker[0] == r'$'
-        ? Definition(parseInline(title), content, ranged: isRanged)
-        : Footnote(title, content, ranged: isRanged);
+        ? Definition(parseInline(title), content, ranged: isRanged, task: task)
+        : Footnote(title, content, ranged: isRanged, task: task);
   }
 
   List<String> _collectUntilLine(String closer) {
@@ -216,7 +230,7 @@ class _BlockParser {
       pos++;
       final line = offset + pos - 1;
       final marker = match[1]!;
-      final (status, text) = _splitExtension(match[2]!);
+      final (task, text) = _splitExtension(match[2]!);
       final kind = marker[0] == '~'
           ? NestableKind.ordered
           : NestableKind.unordered;
@@ -225,7 +239,7 @@ class _BlockParser {
         ListItem(
           kind,
           marker.length,
-          status,
+          task,
           content,
           line: line,
           range: SourceRange(line, offset + pos),
@@ -241,8 +255,13 @@ class _BlockParser {
       final match = _nestableLine.firstMatch(current);
       if (match == null || match[1]![0] != '>') break;
       pos++;
+      final (task, text) = _splitExtension(match[2]!);
       quoteLines.add(
-        QuoteLine(match[1]!.length, parseInline(_continuation(match[2]!))),
+        QuoteLine(
+          match[1]!.length,
+          parseInline(_continuation(text)),
+          task: task,
+        ),
       );
     }
     return QuoteBlock(quoteLines);
@@ -284,10 +303,16 @@ bool _isBlockStart(String line) =>
         _rangedTagLine.hasMatch(line) ||
         _carryoverLine.hasMatch(line));
 
-(TodoStatus?, String) _splitExtension(String text) {
+(TaskExtension?, String) _splitExtension(String text) {
   final match = _extension.firstMatch(text);
   if (match == null) return (null, text);
-  return (todoStatusOf(match[1]!), match[2]!);
+  final segments = match[1]!.split('|');
+  final status = todoStatusOf(match[1]!);
+  final details = [
+    for (final segment in status == null ? segments : segments.skip(1))
+      if (segment.trim().isNotEmpty) segment.trim(),
+  ];
+  return (TaskExtension(status, details), match[2]!);
 }
 
 TodoStatus? todoStatusOf(String extension) {
@@ -499,7 +524,7 @@ class _InlineParser {
         !_isWhitespace(codes[index + 1])) {
       final close = _indexOf(_greaterThan, index + 1);
       if (close > index + 1 && !_isWhitespace(codes[close - 1])) {
-        final node = TextInline(
+        final node = TargetInline(
           text.substring(index + 1, close),
           start: base + index,
           end: base + close + 1,

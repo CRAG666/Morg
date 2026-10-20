@@ -4,9 +4,9 @@ import 'package:flutter/painting.dart';
 
 import 'norg/ast.dart';
 import 'norg/parser.dart';
+import 'norg/targets.dart';
 import 'theme/norg_theme.dart';
 
-final linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 final _detached = RegExp(
   r'^(\s*)(\*+|-+|~+|>+|\$\$?|\^\^?)(\s+)(\([^)]*\)\s+)?(.*)$',
 );
@@ -190,6 +190,19 @@ class RawHighlighter {
               TextSpan(
                 text: raw.substring(start, end),
                 style: _hl(group, style),
+              ),
+            ],
+          ),
+        ]);
+      case TargetInline():
+        return _container(raw, node, _hl('@neorg.links.location.delimiter'), [
+          (
+            node.start + 1,
+            node.end - 1,
+            () => [
+              TextSpan(
+                text: raw.substring(node.start + 1, node.end - 1),
+                style: style,
               ),
             ],
           ),
