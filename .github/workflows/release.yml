@@ -30,14 +30,17 @@ jobs:
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=upload\nstoreFile=%s\n' \
             "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" "$RUNNER_TEMP/upload.jks" > android/key.properties
 
-      - run: flutter build apk --release --split-per-abi
+      - name: Build the APK
+        run: |
+          flutter build apk --release
+          mv build/app/outputs/flutter-apk/app-release.apk "Morg-$GITHUB_REF_NAME.apk"
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "$GITHUB_REF_NAME"
-          build/app/outputs/flutter-apk/*-release.apk
+          "Morg-$GITHUB_REF_NAME.apk"
           --title "Morg $GITHUB_REF_NAME"
           --generate-notes
           --verify-tag

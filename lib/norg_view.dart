@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:re_highlight/re_highlight.dart';
@@ -7,22 +9,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'config/concealer_config.dart';
 import 'highlight/languages.dart';
 import 'norg/ast.dart';
+import 'raw_highlight.dart';
 import 'settings.dart';
+import 'source_editor.dart';
 import 'theme/norg_theme.dart';
 import 'l10n/l10n.dart';
-
-final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
-
-const _todoGroups = {
-  TodoStatus.undone: 'undone',
-  TodoStatus.done: 'done',
-  TodoStatus.pending: 'pending',
-  TodoStatus.needsInput: 'uncertain',
-  TodoStatus.onHold: 'on_hold',
-  TodoStatus.cancelled: 'cancelled',
-  TodoStatus.recurring: 'recurring',
-  TodoStatus.urgent: 'urgent',
-};
 
 String plainText(List<Inline> nodes) => nodes
     .map(
@@ -37,24 +28,8 @@ String plainText(List<Inline> nodes) => nodes
     .join();
 
 String _linkLabel(String target) =>
-    _linkLocation.firstMatch(target)?[2] ??
+    linkLocation.firstMatch(target)?[2] ??
     target.replaceAll(RegExp(r'^:|:$'), '');
-
-String _linkGroup(String target) {
-  if (Uri.tryParse(target) case final uri? when uri.hasScheme) {
-    return '@neorg.links.location.url';
-  }
-  if (target.startsWith(':')) return '@neorg.links.file';
-  final marker = _linkLocation.firstMatch(target)?[1];
-  return switch (marker) {
-    null => '@neorg.links.location.url',
-    '#' || '?' || '=' || '@' => '@neorg.links.location.generic',
-    r'$' => '@neorg.links.location.definition',
-    '^' => '@neorg.links.location.footnote',
-    '/' => '@neorg.links.location.external_file',
-    _ => '@neorg.links.location.heading.${marker.length}',
-  };
-}
 
 Iterable<Heading> _headings(List<Block> blocks) sync* {
   for (final block in blocks) {
@@ -74,11 +49,15 @@ Iterable<Heading> _headings(List<Block> blocks) sync* {
 sealed class _Row {
   const _Row(this.depth);
   final int depth;
+  SourceRange get range;
 }
 
 class _HeadingRow extends _Row {
   const _HeadingRow(this.heading, super.depth);
   final Heading heading;
+
+  @override
+  SourceRange get range => heading.range;
 }
 
 class _ItemRow extends _Row {
@@ -86,11 +65,17 @@ class _ItemRow extends _Row {
   final ListItem item;
   final int ordinal;
   final bool last;
+
+  @override
+  SourceRange get range => item.range;
 }
 
 class _BlockRow extends _Row {
   const _BlockRow(this.block, super.depth);
   final Block block;
+
+  @override
+  SourceRange get range => block.range;
 }
 
 List<int> _ordinals(List<ListItem> items) {
@@ -111,6 +96,8 @@ class NorgDocumentView extends StatefulWidget {
   const NorgDocumentView({
     super.key,
     required this.blocks,
+    required this.source,
+    this.onEdit,
     this.onLink,
     this.onTodoTap,
     this.resolveImage,
@@ -118,6 +105,8 @@ class NorgDocumentView extends StatefulWidget {
   });
 
   final List<Block> blocks;
+  final String source;
+  final Future<void> Function(SourceRange range, String text)? onEdit;
   final ValueChanged<String>? onLink;
   final ValueChanged<int>? onTodoTap;
   final ImageProvider? Function(String path)? resolveImage;
@@ -129,8 +118,9 @@ class NorgDocumentView extends StatefulWidget {
 
 class _NorgDocumentViewState extends State<NorgDocumentView> {
   final _collapsed = <int>{};
-  final _linkRecognizers = <String, TapGestureRecognizer>{};
-  final _todoRecognizers = <int, TapGestureRecognizer>{};
+  final _recognizers = <Object, TapGestureRecognizer>{};
+  late List<String> _lines = widget.source.split('\n');
+  int? _revealed;
   final _highlighted = <(CodeBlock, Brightness), TextSpan?>{};
   final _scrollController = ScrollController();
   final _listController = ListController();
@@ -154,16 +144,15 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.blocks != widget.blocks) {
       _rows = null;
+      _revealed = null;
+      _lines = widget.source.split('\n');
       _highlighted.clear();
     }
   }
 
   @override
   void dispose() {
-    for (final recognizer in [
-      ..._linkRecognizers.values,
-      ..._todoRecognizers.values,
-    ]) {
+    for (final recognizer in _recognizers.values) {
       recognizer.dispose();
     }
     _scrollController.dispose();
@@ -191,10 +180,29 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     return rows;
   }
 
-  void _toggle(Heading heading) => setState(() {
-    if (!_collapsed.remove(heading.line)) _collapsed.add(heading.line);
+  void _toggle(int line) => setState(() {
+    if (!_collapsed.remove(line)) _collapsed.add(line);
     _rows = null;
   });
+
+  TapGestureRecognizer _recognizer(Object key, VoidCallback onTap) =>
+      _recognizers.putIfAbsent(
+        key,
+        () => TapGestureRecognizer()..onTap = onTap,
+      );
+
+  String _sourceOf(SourceRange range) =>
+      _lines.sublist(range.start, range.end).join('\n');
+
+  Future<void> _commit(SourceRange range, String text) async {
+    scheduleMicrotask(() {
+      if (mounted && _revealed == range.start) setState(() => _revealed = null);
+    });
+    if (text != _sourceOf(range)) await widget.onEdit?.call(range, text);
+  }
+
+  TextSpan _rawSpans(String text) =>
+      RawHighlighter(_theme, _base).highlight(text);
 
   TextStyle _hl(String group, [TextStyle? base]) =>
       _theme[group].apply(base ?? _base);
@@ -225,17 +233,39 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
-  Widget _row(_Row row) => _indented(
-    row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0),
-    Padding(
-      padding: EdgeInsets.only(bottom: row is _ItemRow && !row.last ? 2 : 8),
-      child: switch (row) {
-        _HeadingRow(:final heading) => _headingTitle(heading),
-        _ItemRow(:final item, :final ordinal) => _listItem(item, ordinal),
-        _BlockRow(:final block) => _block(block, _base),
-      },
-    ),
-  );
+  Widget _row(_Row row) {
+    final range = row.range;
+    final revealed = _revealed == range.start && range.end > range.start;
+    return _indented(
+      revealed
+          ? 0
+          : row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0),
+      Padding(
+        padding: EdgeInsets.only(bottom: row is _ItemRow && !row.last ? 2 : 8),
+        child: revealed
+            ? SourceEditor(
+                key: ValueKey(range.start),
+                source: _sourceOf(range),
+                style: _base,
+                highlight: (text) => _rawSpans(text),
+                readOnly: widget.onEdit == null,
+                onDone: (text) => _commit(range, text),
+              )
+            : GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _revealed = range.start),
+                child: switch (row) {
+                  _HeadingRow(:final heading) => _headingTitle(heading),
+                  _ItemRow(:final item, :final ordinal) => _listItem(
+                    item,
+                    ordinal,
+                  ),
+                  _BlockRow(:final block) => _block(block, _base),
+                },
+              ),
+      ),
+    );
+  }
 
   List<Widget> _blocks(List<Block> blocks, [TextStyle? paragraphStyle]) => [
     for (final block in blocks)
@@ -341,22 +371,26 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   Widget _headingTitle(Heading heading) {
     final level = heading.level;
     final titleStyle = _hl('@neorg.headings.$level.title');
-    return GestureDetector(
-      onTap: heading.children.isEmpty ? null : () => _toggle(heading),
-      child: Text.rich(
-        TextSpan(
-          children: [
+    final line = heading.line;
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '${iconForLevel(_icons.headingIcons, level)} ',
+            style: _hl('@neorg.headings.$level.prefix'),
+            recognizer: heading.children.isEmpty
+                ? null
+                : _recognizer(('fold', line), () => _toggle(line)),
+          ),
+          if (heading.status case final status?) ..._todoSpans(status, line),
+          _spans(heading.title, titleStyle),
+          if (_collapsed.contains(line))
             TextSpan(
-              text: '${iconForLevel(_icons.headingIcons, level)} ',
-              style: _hl('@neorg.headings.$level.prefix'),
+              text: ' …',
+              style: titleStyle,
+              recognizer: _recognizer(('fold', line), () => _toggle(line)),
             ),
-            if (heading.status case final status?)
-              ..._todoSpans(status, heading.line),
-            _spans(heading.title, titleStyle),
-            if (_collapsed.contains(heading.line))
-              TextSpan(text: ' …', style: titleStyle),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -364,15 +398,10 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   List<InlineSpan> _todoSpans(TodoStatus status, int line) => [
     TextSpan(
       text: '(${_icons.todoIcons[status]})',
-      style: _hl('@neorg.todo_items.${_todoGroups[status]}'),
+      style: _hl('@neorg.todo_items.${todoGroups[status]}'),
       recognizer: widget.onTodoTap == null
           ? null
-          : _todoRecognizers.putIfAbsent(
-              line,
-              () =>
-                  TapGestureRecognizer()
-                    ..onTap = () => widget.onTodoTap?.call(line),
-            ),
+          : _recognizer(('todo', line), () => widget.onTodoTap?.call(line)),
     ),
     const TextSpan(text: ' '),
   ];
@@ -662,12 +691,9 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   InlineSpan _link(String target, List<Inline> description, TextStyle style) {
-    final recognizer = _linkRecognizers.putIfAbsent(
-      target,
-      () => TapGestureRecognizer()..onTap = () => _followLink(target),
-    );
+    final recognizer = _recognizer(('link', target), () => _followLink(target));
     final linkStyle = description.isEmpty
-        ? _hl(_linkGroup(target), style)
+        ? _hl(linkGroup(target), style)
         : _hl('@neorg.links.description', style);
     return _withRecognizer(
       TextSpan(
@@ -732,7 +758,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   Heading? _headingFor(String target) {
-    final match = _linkLocation.firstMatch(target);
+    final match = linkLocation.firstMatch(target);
     if (match == null) return null;
     final marker = match[1]!;
     final title = _comparable(match[2]!);

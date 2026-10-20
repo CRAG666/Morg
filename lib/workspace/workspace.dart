@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../settings.dart';
 import 'store.dart';
 
 final _envVariable = RegExp(r'\$([A-Za-z0-9_]+)');
@@ -30,7 +32,9 @@ class Workspace {
   final NoteStore store;
 }
 
-String userHome() => Platform.isAndroid
+String userHome() => kIsWeb
+    ? '/'
+    : Platform.isAndroid
     ? '/storage/emulated/0'
     : Platform.environment['HOME'] ?? Directory.current.path;
 
@@ -41,25 +45,39 @@ String expandPath(String path, {required String home}) {
   return p.normalize(
     withHome.replaceAllMapped(
       _envVariable,
-      (match) => Platform.environment[match[1]] ?? match[0]!,
+      (match) => (kIsWeb ? null : Platform.environment[match[1]]) ?? match[0]!,
     ),
   );
 }
 
 class Workspaces {
-  Workspaces(Map<String, String> config, {required this.home})
-    : all = {
-        for (final MapEntry(:key, :value) in config.entries)
-          key: Workspace(
-            key,
-            isContentUri(value)
-                ? SafStore(value)
-                : LocalStore(Directory(expandPath(value, home: home))),
-          ),
-      };
+  Workspaces(
+    Map<String, String> config, {
+    required this.home,
+    this.defaultWorkspace,
+  }) : all = {
+         for (final MapEntry(:key, :value) in config.entries)
+           key: Workspace(
+             key,
+             isContentUri(value)
+                 ? SafStore(value)
+                 : LocalStore(Directory(expandPath(value, home: home))),
+           ),
+       };
+
+  factory Workspaces.of(MorgConfig config) => Workspaces(
+    config.workspaces,
+    home: userHome(),
+    defaultWorkspace: config.defaultWorkspace,
+  );
 
   final String home;
+  final String? defaultWorkspace;
   final Map<String, Workspace> all;
+
+  Workspace? containing(NoteRef note) => all.values
+      .where((workspace) => workspace.store == note.store)
+      .firstOrNull;
 
   NoteRef local(String absolutePath) {
     NoteRef? best;
@@ -99,7 +117,10 @@ class Workspaces {
       final slash = path.indexOf('/');
       if (slash < 0) return null;
       final name = path.substring(1, slash);
-      final store = name.isEmpty ? from?.store : all[name]?.store;
+      final store = name.isEmpty
+          ? (from == null ? null : containing(from)?.store) ??
+                all[defaultWorkspace]?.store
+          : all[name]?.store;
       final rest = p.posix.normalize(path.substring(slash + 1));
       return store == null ? null : NoteRef(store, rest);
     }

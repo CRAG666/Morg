@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -16,6 +17,7 @@ class MorgConfig {
   const MorgConfig({
     required this.source,
     required this.themeName,
+    required this.themeMode,
     required this.concealer,
     required this.workspaces,
     required this.defaultWorkspace,
@@ -63,6 +65,12 @@ class MorgConfig {
     return MorgConfig(
       source: source,
       themeName: json['theme'] as String? ?? 'eyes',
+      themeMode: switch (json['theme_mode']) {
+        null || 'system' => ThemeMode.system,
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        final other => throw FormatException('Unknown theme_mode: $other'),
+      },
       concealer: ConcealerConfig.fromNeorg(concealer),
       workspaces: {
         for (final MapEntry(:key, :value) in workspaces.entries)
@@ -92,6 +100,7 @@ class MorgConfig {
 
   final String source;
   final String themeName;
+  final ThemeMode themeMode;
   final ConcealerConfig concealer;
   final Map<String, String> workspaces;
   final String? defaultWorkspace;
@@ -143,12 +152,10 @@ class SettingsStore {
 
   Future<MorgSettings> save(String source) async {
     final settings = await _settings(MorgConfig.parse(source));
-    final file = _configFile;
-    if (file == null) {
-      throw UnsupportedError('No storage on this platform');
+    if (_configFile case final file?) {
+      await file.parent.create(recursive: true);
+      await file.writeAsString(source);
     }
-    await file.parent.create(recursive: true);
-    await file.writeAsString(source);
     return settings;
   }
 
@@ -205,19 +212,39 @@ class SettingsController extends ValueNotifier<MorgSettings> {
 
   Future<void> reset() async => save(await store.defaultConfig());
 
-  Future<void> setWorkspace(String name, String? location) async {
-    final json = jsonDecode(value.config.source) as Map<String, Object?>;
-    Map<String, Object?> child(Map<String, Object?> parent, String key) =>
-        (parent[key] ??= <String, Object?>{}) as Map<String, Object?>;
-    final dirman = child(child(child(json, 'load'), 'core.dirman'), 'config');
-    final workspaces = child(dirman, 'workspaces');
-    if (location == null) {
-      workspaces.remove(name);
-    } else {
-      workspaces[name] = location;
+  Object? valueAt(List<String> path) {
+    Object? node = jsonDecode(value.config.source);
+    for (final key in path) {
+      if (node is! Map) return null;
+      node = node[key];
     }
+    return node;
+  }
+
+  Future<void> edit(void Function(Map<String, Object?> json) change) async {
+    final json = jsonDecode(value.config.source) as Map<String, Object?>;
+    change(json);
     await save(const JsonEncoder.withIndent('  ').convert(json));
   }
+
+  Future<void> setValue(List<String> path, Object? newValue) => edit((json) {
+    final node = _at(json, path.sublist(0, path.length - 1));
+    if (newValue == null) {
+      node.remove(path.last);
+    } else {
+      node[path.last] = newValue;
+    }
+  });
+
+  Future<void> setWorkspace(String name, String? location) =>
+      setValue([..._dirman, 'workspaces', name], location);
+
+  Future<void> renameWorkspace(String from, String to) => edit((json) {
+    final dirman = _at(json, _dirman);
+    final workspaces = dirman['workspaces'] as Map<String, Object?>;
+    workspaces[to] = workspaces.remove(from);
+    if (dirman['default_workspace'] == from) dirman['default_workspace'] = to;
+  });
 
   Future<String> importTheme(String source) => store.importTheme(source);
 }
@@ -234,6 +261,16 @@ class MorgSettingsScope extends InheritedNotifier<SettingsController> {
       .notifier!;
 
   static MorgSettings of(BuildContext context) => controllerOf(context).value;
+}
+
+const _dirman = ['load', 'core.dirman', 'config'];
+
+Map<String, Object?> _at(Map<String, Object?> json, List<String> path) {
+  var node = json;
+  for (final key in path) {
+    node = (node[key] ??= <String, Object?>{}) as Map<String, Object?>;
+  }
+  return node;
 }
 
 Map<String, Object?> _object(Object? value, String name) => switch (value) {

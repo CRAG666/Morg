@@ -132,11 +132,8 @@
   "grant": "Grant",
   "workspaces": "Workspaces",
   "workspaceMissing": "Not on this phone · tap to choose its folder",
-  "addFolder": "Add folder…",
-  "addFolderSubtitle": "Syncthing, Nextcloud, OneDrive, etc.",
   "openFile": "Open file…",
   "pickNorgFile": "Open a Norg file",
-  "readOnly": "Read only",
   "alsoFromCloud": "Also from the cloud",
   "norgGuide": "Norg guide",
   "guideAsset": "assets/guide.norg",
@@ -151,5 +148,42 @@
         "type": "String"
       }
     }
-  }
+  },
+  "themeSystem": "System theme",
+  "addWorkspace": "Add workspace",
+  "noWorkspaces": "No workspaces yet. Tap “Add workspace” and choose the folder of your notes.",
+  "browseFiles": "Browse files",
+  "changeFolder": "Change folder",
+  "rename": "Rename",
+  "noIndexTitle": "No {file} here",
+  "noIndexBody": "Create it, like Neorg's index, or browse the workspace files?",
+  "@noIndexTitle": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "appearance": "Appearance",
+  "themeMode": "Theme",
+  "colorscheme": "Colorscheme",
+  "rendering": "Rendering (core.concealer)",
+  "headingIcons": "Heading icons (one per level)",
+  "listIcons": "List icons",
+  "quoteIcons": "Quote icons",
+  "hideCodeTags": "Hide @code and @end lines",
+  "notesSection": "Notes",
+  "author": "Author (metagen)",
+  "indexFile": "Index file",
+  "defaultWorkspace": "Default workspace",
+  "none": "None",
+  "journal": "Journal",
+  "journalFolder": "Journal folder",
+  "journalStrategy": "Entry path",
+  "strategyNested": "2026/10/20.norg",
+  "strategyFlat": "2026-10-20.norg",
+  "journalTemplate": "Template file",
+  "useTemplate": "Use the template",
+  "advanced": "Advanced",
+  "defaultSetting": "Default"
 }

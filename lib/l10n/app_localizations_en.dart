@@ -174,19 +174,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceMissing => 'Not on this phone · tap to choose its folder';
 
   @override
-  String get addFolder => 'Add folder…';
-
-  @override
-  String get addFolderSubtitle => 'Syncthing, Nextcloud, OneDrive, etc.';
-
-  @override
   String get openFile => 'Open file…';
 
   @override
   String get pickNorgFile => 'Open a Norg file';
-
-  @override
-  String get readOnly => 'Read only';
 
   @override
   String get alsoFromCloud => 'Also from the cloud';
@@ -214,4 +205,98 @@ class AppLocalizationsEn extends AppLocalizations {
   String invalidFile(String error) {
     return 'Invalid file: $error';
   }
+
+  @override
+  String get themeSystem => 'System theme';
+
+  @override
+  String get addWorkspace => 'Add workspace';
+
+  @override
+  String get noWorkspaces =>
+      'No workspaces yet. Tap “Add workspace” and choose the folder of your notes.';
+
+  @override
+  String get browseFiles => 'Browse files';
+
+  @override
+  String get changeFolder => 'Change folder';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String noIndexTitle(String file) {
+    return 'No $file here';
+  }
+
+  @override
+  String get noIndexBody =>
+      'Create it, like Neorg\'s index, or browse the workspace files?';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get themeMode => 'Theme';
+
+  @override
+  String get colorscheme => 'Colorscheme';
+
+  @override
+  String get rendering => 'Rendering (core.concealer)';
+
+  @override
+  String get headingIcons => 'Heading icons (one per level)';
+
+  @override
+  String get listIcons => 'List icons';
+
+  @override
+  String get quoteIcons => 'Quote icons';
+
+  @override
+  String get hideCodeTags => 'Hide @code and @end lines';
+
+  @override
+  String get notesSection => 'Notes';
+
+  @override
+  String get author => 'Author (metagen)';
+
+  @override
+  String get indexFile => 'Index file';
+
+  @override
+  String get defaultWorkspace => 'Default workspace';
+
+  @override
+  String get none => 'None';
+
+  @override
+  String get journal => 'Journal';
+
+  @override
+  String get journalFolder => 'Journal folder';
+
+  @override
+  String get journalStrategy => 'Entry path';
+
+  @override
+  String get strategyNested => '2026/10/20.norg';
+
+  @override
+  String get strategyFlat => '2026-10-20.norg';
+
+  @override
+  String get journalTemplate => 'Template file';
+
+  @override
+  String get useTemplate => 'Use the template';
+
+  @override
+  String get advanced => 'Advanced';
+
+  @override
+  String get defaultSetting => 'Default';
 }

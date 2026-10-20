@@ -63,10 +63,14 @@ class _BlockParser {
   List<Block> parse() {
     final root = <Block>[];
     final openHeadings = <Heading>[];
-    void add(Block block) =>
-        (openHeadings.isEmpty ? root : openHeadings.last.children).add(block);
+    var blockStart = offset;
+    void add(Block block) {
+      block.range = SourceRange(blockStart, offset + pos);
+      (openHeadings.isEmpty ? root : openHeadings.last.children).add(block);
+    }
 
     while (pos < lines.length) {
+      blockStart = offset + pos;
       final line = current;
       if (line.isEmpty) {
         pos++;
@@ -216,13 +220,15 @@ class _BlockParser {
       final kind = marker[0] == '~'
           ? NestableKind.ordered
           : NestableKind.unordered;
+      final content = parseInline(_continuation(text));
       items.add(
         ListItem(
           kind,
           marker.length,
           status,
-          parseInline(_continuation(text)),
+          content,
           line: line,
+          range: SourceRange(line, offset + pos),
         ),
       );
     }
@@ -281,11 +287,12 @@ bool _isBlockStart(String line) =>
 (TodoStatus?, String) _splitExtension(String text) {
   final match = _extension.firstMatch(text);
   if (match == null) return (null, text);
-  final first = match[1]!.split('|').first;
-  final status = first.trim().isEmpty
-      ? TodoStatus.undone
-      : _statuses[first.trim()[0]];
-  return (status, match[2]!);
+  return (todoStatusOf(match[1]!), match[2]!);
+}
+
+TodoStatus? todoStatusOf(String extension) {
+  final first = extension.split('|').first.trim();
+  return first.isEmpty ? TodoStatus.undone : _statuses[first[0]];
 }
 
 Map<String, String> _metaFields(List<String> body) {
@@ -376,12 +383,14 @@ bool _isWord(int code) => code < 0x80
           ((code | 0x20) >= 0x61 && (code | 0x20) <= 0x7A)
     : _unicodeWord[code] ??= _wordChar.hasMatch(String.fromCharCode(code));
 
-List<Inline> parseInline(String text) => _InlineParser(text).parse();
+List<Inline> parseInline(String text, [int base = 0]) =>
+    _InlineParser(text, base).parse();
 
 class _InlineParser {
-  _InlineParser(this.text) : codes = text.codeUnits;
+  _InlineParser(this.text, this.base) : codes = text.codeUnits;
 
   final String text;
+  final int base;
   final List<int> codes;
   final _failedFrom = <int, int>{};
   final _failedVisits = <int, Uint8List>{};
@@ -401,12 +410,17 @@ class _InlineParser {
   List<Inline> parse() {
     final nodes = <Inline>[];
     final plain = StringBuffer();
+    var textStart = base;
+    void emitText(int end) {
+      if (plain.isEmpty) return;
+      nodes.add(TextInline(plain.toString(), start: textStart, end: end));
+      plain.clear();
+    }
+
     void emit(Inline node) {
-      if (plain.isNotEmpty) {
-        nodes.add(TextInline(plain.toString()));
-        plain.clear();
-      }
+      emitText(node.start);
       nodes.add(node);
+      textStart = node.end;
     }
 
     var runStart = 0;
@@ -441,7 +455,7 @@ class _InlineParser {
       index++;
     }
     flushRun();
-    if (plain.isNotEmpty) nodes.add(TextInline(plain.toString()));
+    emitText(base + length);
     return nodes;
   }
 
@@ -452,9 +466,12 @@ class _InlineParser {
       if (close <= index + 1) return null;
       final target = text.substring(index + 1, close);
       final description = _bracketed(close + 1);
-      return description == null
-          ? (LinkInline(target, const []), close + 1)
-          : (LinkInline(target, parseInline(description.$1)), description.$2);
+      if (description == null) {
+        return (_link(target, const [], index, close + 1), close + 1);
+      }
+      final (label, next) = description;
+      final children = parseInline(label, base + close + 2);
+      return (_link(target, children, index, next), next);
     }
     if (code == _openBracket) {
       final description = _bracketed(index);
@@ -463,24 +480,38 @@ class _InlineParser {
       if (next < length && codes[next] == _openBrace) {
         final close = _indexOf(_closeBrace, next + 1);
         if (close > next + 1) {
-          return (
-            LinkInline(text.substring(next + 1, close), parseInline(label)),
-            close + 1,
-          );
+          final target = text.substring(next + 1, close);
+          final children = parseInline(label, base + index + 1);
+          return (_link(target, children, index, close + 1), close + 1);
         }
       }
-      return (AnchorInline(parseInline(label)), next);
+      return (
+        AnchorInline(
+          parseInline(label, base + index + 1),
+          start: base + index,
+          end: base + next,
+        ),
+        next,
+      );
     }
     if (code == _lessThan &&
         index + 1 < length &&
         !_isWhitespace(codes[index + 1])) {
       final close = _indexOf(_greaterThan, index + 1);
       if (close > index + 1 && !_isWhitespace(codes[close - 1])) {
-        return (TextInline(text.substring(index + 1, close)), close + 1);
+        final node = TextInline(
+          text.substring(index + 1, close),
+          start: base + index,
+          end: base + close + 1,
+        );
+        return (node, close + 1);
       }
     }
     return null;
   }
+
+  LinkInline _link(String target, List<Inline> children, int start, int end) =>
+      LinkInline(target, children, start: base + start, end: base + end);
 
   (Inline, int)? _linkModifier(int index) {
     if (codes[index] != _colon ||
@@ -526,13 +557,21 @@ class _InlineParser {
 
     final content = text.substring(contentStart, freeForm ? close - 1 : close);
     final end = close + 1;
+    final (start, stop) = (base + index, base + end);
     if (code == _nullCode) {
-      return (VerbatimInline(VerbatimKind.comment, content), end);
+      return (
+        VerbatimInline(VerbatimKind.comment, content, start: start, end: stop),
+        end,
+      );
     }
     if (_verbatimCodes[code] case final kind?) {
-      return (VerbatimInline(kind, content), end);
+      return (VerbatimInline(kind, content, start: start, end: stop), end);
     }
-    return (StyledInline(_styleCodes[code]!, parseInline(content)), end);
+    final children = parseInline(content, base + contentStart);
+    return (
+      StyledInline(_styleCodes[code]!, children, start: start, end: stop),
+      end,
+    );
   }
 
   int? _freeFormClose(int start, int code) {

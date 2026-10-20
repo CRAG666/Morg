@@ -374,18 +374,6 @@ abstract class AppLocalizations {
   /// **'Not on this phone · tap to choose its folder'**
   String get workspaceMissing;
 
-  /// No description provided for @addFolder.
-  ///
-  /// In en, this message translates to:
-  /// **'Add folder…'**
-  String get addFolder;
-
-  /// No description provided for @addFolderSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncthing, Nextcloud, OneDrive, etc.'**
-  String get addFolderSubtitle;
-
   /// No description provided for @openFile.
   ///
   /// In en, this message translates to:
@@ -397,12 +385,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open a Norg file'**
   String get pickNorgFile;
-
-  /// No description provided for @readOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Read only'**
-  String get readOnly;
 
   /// No description provided for @alsoFromCloud.
   ///
@@ -451,6 +433,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invalid file: {error}'**
   String invalidFile(String error);
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System theme'**
+  String get themeSystem;
+
+  /// No description provided for @addWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Add workspace'**
+  String get addWorkspace;
+
+  /// No description provided for @noWorkspaces.
+  ///
+  /// In en, this message translates to:
+  /// **'No workspaces yet. Tap “Add workspace” and choose the folder of your notes.'**
+  String get noWorkspaces;
+
+  /// No description provided for @browseFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse files'**
+  String get browseFiles;
+
+  /// No description provided for @changeFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Change folder'**
+  String get changeFolder;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @noIndexTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No {file} here'**
+  String noIndexTitle(String file);
+
+  /// No description provided for @noIndexBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Create it, like Neorg\'s index, or browse the workspace files?'**
+  String get noIndexBody;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @themeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themeMode;
+
+  /// No description provided for @colorscheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Colorscheme'**
+  String get colorscheme;
+
+  /// No description provided for @rendering.
+  ///
+  /// In en, this message translates to:
+  /// **'Rendering (core.concealer)'**
+  String get rendering;
+
+  /// No description provided for @headingIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading icons (one per level)'**
+  String get headingIcons;
+
+  /// No description provided for @listIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'List icons'**
+  String get listIcons;
+
+  /// No description provided for @quoteIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Quote icons'**
+  String get quoteIcons;
+
+  /// No description provided for @hideCodeTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide @code and @end lines'**
+  String get hideCodeTags;
+
+  /// No description provided for @notesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get notesSection;
+
+  /// No description provided for @author.
+  ///
+  /// In en, this message translates to:
+  /// **'Author (metagen)'**
+  String get author;
+
+  /// No description provided for @indexFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Index file'**
+  String get indexFile;
+
+  /// No description provided for @defaultWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Default workspace'**
+  String get defaultWorkspace;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get none;
+
+  /// No description provided for @journal.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal'**
+  String get journal;
+
+  /// No description provided for @journalFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal folder'**
+  String get journalFolder;
+
+  /// No description provided for @journalStrategy.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry path'**
+  String get journalStrategy;
+
+  /// No description provided for @strategyNested.
+  ///
+  /// In en, this message translates to:
+  /// **'2026/10/20.norg'**
+  String get strategyNested;
+
+  /// No description provided for @strategyFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'2026-10-20.norg'**
+  String get strategyFlat;
+
+  /// No description provided for @journalTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Template file'**
+  String get journalTemplate;
+
+  /// No description provided for @useTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the template'**
+  String get useTemplate;
+
+  /// No description provided for @advanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get advanced;
+
+  /// No description provided for @defaultSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultSetting;
 }
 
 class _AppLocalizationsDelegate

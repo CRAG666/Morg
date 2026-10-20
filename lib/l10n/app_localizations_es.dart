@@ -175,19 +175,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'No está en este teléfono · toca para elegir su carpeta';
 
   @override
-  String get addFolder => 'Añadir carpeta…';
-
-  @override
-  String get addFolderSubtitle => 'Syncthing, Nextcloud, OneDrive, etc.';
-
-  @override
   String get openFile => 'Abrir archivo…';
 
   @override
   String get pickNorgFile => 'Abrir archivo Norg';
-
-  @override
-  String get readOnly => 'Solo lectura';
 
   @override
   String get alsoFromCloud => 'También desde la nube';
@@ -215,4 +206,98 @@ class AppLocalizationsEs extends AppLocalizations {
   String invalidFile(String error) {
     return 'Archivo inválido: $error';
   }
+
+  @override
+  String get themeSystem => 'Tema del sistema';
+
+  @override
+  String get addWorkspace => 'Añadir workspace';
+
+  @override
+  String get noWorkspaces =>
+      'Aún no hay workspaces. Toca «Añadir workspace» y elige la carpeta de tus notas.';
+
+  @override
+  String get browseFiles => 'Explorar archivos';
+
+  @override
+  String get changeFolder => 'Cambiar carpeta';
+
+  @override
+  String get rename => 'Renombrar';
+
+  @override
+  String noIndexTitle(String file) {
+    return 'No hay $file';
+  }
+
+  @override
+  String get noIndexBody =>
+      '¿Crearlo, como el índice de Neorg, o explorar los archivos del workspace?';
+
+  @override
+  String get appearance => 'Apariencia';
+
+  @override
+  String get themeMode => 'Tema';
+
+  @override
+  String get colorscheme => 'Colorscheme';
+
+  @override
+  String get rendering => 'Renderizado (core.concealer)';
+
+  @override
+  String get headingIcons => 'Iconos de encabezados (uno por nivel)';
+
+  @override
+  String get listIcons => 'Iconos de listas';
+
+  @override
+  String get quoteIcons => 'Iconos de citas';
+
+  @override
+  String get hideCodeTags => 'Ocultar las líneas @code y @end';
+
+  @override
+  String get notesSection => 'Notas';
+
+  @override
+  String get author => 'Autor (metagen)';
+
+  @override
+  String get indexFile => 'Archivo índice';
+
+  @override
+  String get defaultWorkspace => 'Workspace predeterminado';
+
+  @override
+  String get none => 'Ninguno';
+
+  @override
+  String get journal => 'Diario';
+
+  @override
+  String get journalFolder => 'Carpeta del diario';
+
+  @override
+  String get journalStrategy => 'Ruta de cada entrada';
+
+  @override
+  String get strategyNested => '2026/10/20.norg';
+
+  @override
+  String get strategyFlat => '2026-10-20.norg';
+
+  @override
+  String get journalTemplate => 'Archivo de plantilla';
+
+  @override
+  String get useTemplate => 'Usar la plantilla';
+
+  @override
+  String get advanced => 'Avanzado';
+
+  @override
+  String get defaultSetting => 'Por defecto';
 }

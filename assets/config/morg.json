@@ -1,5 +1,6 @@
 {
   "theme": "eyes",
+  "theme_mode": "system",
   "load": {
     "core.concealer": {
       "config": {
@@ -60,9 +61,7 @@
     },
     "core.dirman": {
       "config": {
-        "workspaces": {
-          "notes": "~/Documents/Notes"
-        }
+        "workspaces": {}
       }
     }
   }

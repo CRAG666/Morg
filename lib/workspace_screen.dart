@@ -64,7 +64,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         contents: contents,
       );
     }
-    await _open(DocumentScreen.note(ref));
+    await _open(DocumentScreen(note: ref));
   }
 
   Future<void> _openJournalToday() async {
@@ -174,7 +174,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                             ),
                           )
                         : _open(
-                            DocumentScreen.note(NoteRef(_store, entry.path)),
+                            DocumentScreen(note: NoteRef(_store, entry.path)),
                           ),
                   ),
               ],

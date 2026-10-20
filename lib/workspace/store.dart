@@ -102,6 +102,38 @@ class LocalStore implements NoteStore {
   int get hashCode => p.canonicalize(root.path).hashCode;
 }
 
+class MemoryStore implements NoteStore {
+  MemoryStore(this.location, Map<String, String> files)
+    : _files = {
+        for (final MapEntry(:key, :value) in files.entries)
+          key: utf8.encode(value),
+      };
+
+  @override
+  final String location;
+  final Map<String, Uint8List> _files;
+
+  @override
+  Future<List<NoteEntry>> list(String directory) async => [
+    for (final path in _files.keys) NoteEntry(path, isDirectory: false),
+  ];
+
+  @override
+  Future<bool> exists(String path) async => _files.containsKey(path);
+
+  @override
+  Future<Uint8List> readBytes(String path) async =>
+      _files[path] ?? (throw FileSystemException('Not found', path));
+
+  @override
+  Future<void> writeBytes(String path, Uint8List bytes) async =>
+      _files[path] = bytes;
+
+  @override
+  Future<void> openExternally(String path) =>
+      throw FileSystemException('In-memory documents cannot be opened', path);
+}
+
 Future<void> openWithSystem(String path) async {
   final result = await OpenFilex.open(path);
   if (result.type != ResultType.done) {

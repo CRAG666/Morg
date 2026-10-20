@@ -34,35 +34,37 @@
 - **Workspaces**: local folders (for example synced with Syncthing) and cloud folders through Android's Storage
   Access Framework (Nextcloud, OneDrive, …). Links resolve like `core.esupports.hop`: `$/`, `$name/`, `~/`,
   absolute and relative paths, `{* Heading}`, `{# generic}`, `{/ external.pdf}` and URLs.
-- **Editing**: tap a TODO to cycle it (neorg order, children and parents are updated), edit the raw source,
+- **Edit in place, like `conceallevel=2`**: tap any element and only that element shows its raw Norg source,
+  still highlighted (delimiters dimmed like Neovim's insert mode), ready to edit; tap elsewhere to save.
+  Tap a heading icon to fold it.
+- **Editing**: tap a TODO to cycle it (neorg order, children and parents are updated), edit the whole file,
   `updated:` is refreshed on save like metagen, create notes and today's journal entry.
+- **Workspaces from the UI**: add, rename, relocate or remove them; opening a workspace opens its `index.norg`,
+  like `:Neorg workspace`.
 - **Blazing fast**: a linear-time parser (~65 MiB/s) and a virtualized document view that only builds what is
   on screen, no matter how long the note is.
 - English and Spanish interface.
 
 ## Install
 
-Grab the APK from the [latest release](https://github.com/CRAG666/Morg/releases/latest):
+Download `Morg-vX.Y.Z.apk` from the [latest release](https://github.com/CRAG666/Morg/releases/latest). It works
+on every Android architecture, and new releases are signed with the same key, so they install over the previous
+version.
 
-| File | Devices |
-|---|---|
-| `app-arm64-v8a-release.apk` | almost every phone made in the last years |
-| `app-armeabi-v7a-release.apk` | older 32-bit phones |
-| `app-x86_64-release.apk` | emulators and x86 devices |
-
-New releases are signed with the same key, so they install over the previous version.
-
-On first launch grant **File access** if you keep your notes in a regular folder (Syncthing, local storage).
-Cloud folders added with **Add folder…** work without that permission.
+On first launch grant **File access** if you keep your notes in a regular folder (Syncthing, local storage), then
+tap **Add workspace** and choose the folder. Cloud folders work without that permission.
 
 ## Configuration
 
-Open **Settings → Edit configuration** to edit `morg.json`, or **Import configuration** to load one from a file
-(for example from your synced notes). Invalid configurations are rejected before they are saved.
+Everything can be changed in **Settings** (theme, colorscheme, concealer icons, author, index file, default
+workspace and journal options). Those screens edit `morg.json`, which you can also edit directly in
+**Settings → Edit configuration** or replace with **Import configuration** (for example from your synced notes).
+Invalid configurations are rejected before they are saved.
 
 ```json
 {
   "theme": "eyes",
+  "theme_mode": "system",
   "load": {
     "core.concealer": {
       "config": {
@@ -89,6 +91,7 @@ Open **Settings → Edit configuration** to edit `morg.json`, or **Import config
 ```
 
 - Keys and defaults follow neorg; anything you leave out uses neorg's default (`basic` icon preset).
+- `theme` and `theme_mode` (`system`, `light` or `dark`) are the only keys outside neorg's structure.
 - On Android `~` is the shared storage root (`/storage/emulated/0`).
 - Use the **same workspace names as in Neovim** so links like `{:$notes/index:}` keep working.
 - If a workspace folder is missing on the phone, tap it to pick its location; the name is kept.
@@ -165,7 +168,7 @@ tool/              Neovim theme exporter and parser benchmark
 2. Commit, then push a tag that matches it: `git tag -a v0.2.0 -m "Morg v0.2.0" && git push origin v0.2.0`.
 
 The [release workflow](.github/workflows/release.yml) checks that the tag matches `pubspec.yaml`, builds the
-signed per-ABI APKs and publishes the release. It needs the `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD`
+signed universal APK and publishes the release. It needs the `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD`
 repository secrets.
 
 ## Acknowledgements

@@ -12,23 +12,17 @@ import 'settings.dart';
 import 'theme_toggle.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
+import 'workspace_screen.dart';
 import 'l10n/l10n.dart';
 
 class DocumentScreen extends StatefulWidget {
-  DocumentScreen.note(NoteRef this.note, {super.key, this.initialLocation})
-    : source = null,
-      name = note.name;
+  const DocumentScreen({super.key, required this.note, this.initialLocation});
 
-  const DocumentScreen.source(
-    String this.source, {
-    super.key,
-    required this.name,
-  }) : note = null,
-       initialLocation = null;
+  DocumentScreen.memory(String source, {super.key, required String name})
+    : note = NoteRef(MemoryStore(name, {name: source}), name),
+      initialLocation = null;
 
-  final NoteRef? note;
-  final String? source;
-  final String name;
+  final NoteRef note;
   final String? initialLocation;
 
   @override
@@ -49,7 +43,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   Future<void> _load() async {
     try {
       final note = widget.note;
-      final source = widget.source ?? await note!.store.read(note.path);
+      final source = await note.store.read(note.path);
       setState(() {
         _source = source;
         _blocks = parseNorg(source);
@@ -61,13 +55,23 @@ class _DocumentScreenState extends State<DocumentScreen> {
   }
 
   Future<void> _write(String source) async {
-    final note = widget.note!;
+    final note = widget.note;
     await note.store.write(note.path, touchUpdated(source, DateTime.now()));
     await _load();
   }
 
   Future<void> _save(String edited) async {
     if (edited != _source) await _write(edited);
+  }
+
+  Future<void> _replaceLines(SourceRange range, String text) async {
+    final lines = _source!.split('\n')
+      ..replaceRange(range.start, range.end, text.split('\n'));
+    try {
+      await _write(lines.join('\n'));
+    } on FileSystemException catch (error) {
+      _notify((l10n) => l10n.saveFailed('$error'));
+    }
   }
 
   Future<void> _toggleTodo(int line) async {
@@ -78,10 +82,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
     }
   }
 
-  Workspaces get _workspaces => Workspaces(
-    MorgSettingsScope.of(context).config.workspaces,
-    home: userHome(),
-  );
+  Workspaces get _workspaces =>
+      Workspaces.of(MorgSettingsScope.of(context).config);
 
   void _notify(String Function(AppLocalizations l10n) message) {
     if (!mounted) return;
@@ -110,10 +112,11 @@ class _DocumentScreenState extends State<DocumentScreen> {
         if (!mounted) return;
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => DocumentScreen.note(ref, initialLocation: location),
+            builder: (_) =>
+                DocumentScreen(note: ref, initialLocation: location),
           ),
         );
-        if (widget.note != null) await _load();
+        await _load();
       case ExternalFileTarget(:final ref):
         await ref.store.openExternally(ref.path);
       case LocalTarget(:final location):
@@ -158,19 +161,35 @@ class _DocumentScreenState extends State<DocumentScreen> {
 
   Future<void> _edit() => Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) =>
-          EditorScreen(title: widget.name, source: _source!, onSave: _save),
+      builder: (_) => EditorScreen(
+        title: widget.note.name,
+        source: _source!,
+        onSave: _save,
+      ),
     ),
   );
 
   @override
   Widget build(BuildContext context) {
     final meta = _blocks.whereType<DocumentMeta>().firstOrNull;
-    final editable = widget.note != null && _source != null;
+    final editable = _source != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(meta?.fields['title'] ?? widget.name),
+        title: Text(meta?.fields['title'] ?? widget.note.name),
         actions: [
+          if (_workspaces.containing(widget.note) case final workspace?)
+            IconButton(
+              tooltip: context.l10n.browseFiles,
+              icon: const Icon(Icons.folder_open),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WorkspaceScreen(
+                    workspace: workspace,
+                    directory: widget.note.directory,
+                  ),
+                ),
+              ),
+            ),
           if (editable)
             IconButton(
               tooltip: context.l10n.edit,
@@ -185,8 +204,10 @@ class _DocumentScreenState extends State<DocumentScreen> {
           child: Text(context.l10n.couldNotRead('$error')),
         ),
         (_, null) => const Center(child: CircularProgressIndicator()),
-        _ => NorgDocumentView(
+        (_, final source?) => NorgDocumentView(
           blocks: _blocks,
+          source: source,
+          onEdit: editable ? _replaceLines : null,
           onLink: _openLink,
           onTodoTap: editable ? _toggleTodo : null,
           resolveImage: _resolveImage,

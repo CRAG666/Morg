@@ -49,19 +49,16 @@ class MorgApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final family = MorgSettingsScope.of(context).theme;
-    return ValueListenableBuilder(
-      valueListenable: themeMode,
-      builder: (context, mode, _) => MaterialApp(
-        title: 'Morg',
-        debugShowCheckedModeBanner: false,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        theme: _theme(family.light, Brightness.light),
-        darkTheme: _theme(family.dark, Brightness.dark),
-        themeMode: mode,
-        home: const HomeScreen(),
-      ),
+    final settings = MorgSettingsScope.of(context);
+    return MaterialApp(
+      title: 'Morg',
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: _theme(settings.theme.light, Brightness.light),
+      darkTheme: _theme(settings.theme.dark, Brightness.dark),
+      themeMode: settings.config.themeMode,
+      home: const HomeScreen(),
     );
   }
 }
@@ -101,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final document = await _saf.pickFile();
       if (document == null || !mounted) return;
       final store = SafFileStore(document.uri, document.name);
-      _push(DocumentScreen.note(NoteRef(store, document.name)));
+      _push(DocumentScreen(note: NoteRef(store, document.name)));
       return;
     }
     final file = await FilePicker.pickFile(
@@ -111,20 +108,25 @@ class _HomeScreenState extends State<HomeScreen> {
     final path = kIsWeb ? null : file.path;
     if (path != null) {
       final store = LocalStore(File(path).parent);
-      _push(DocumentScreen.note(NoteRef(store, p.basename(path))));
+      _push(DocumentScreen(note: NoteRef(store, p.basename(path))));
       return;
     }
     final source = utf8.decode(await file.readAsBytes(), allowMalformed: true);
-    _push(DocumentScreen.source(source, name: file.name));
+    _push(DocumentScreen.memory(source, name: file.name));
   }
 
   Future<void> _openGuide() async {
     final asset = context.l10n.guideAsset;
     final source = await rootBundle.loadString(asset);
-    _push(DocumentScreen.source(source, name: 'guide'));
+    _push(DocumentScreen.memory(source, name: 'guide'));
   }
 
   Future<String?> _pickFolder({String? initialUri}) async {
+    if (!_isAndroid) {
+      return FilePicker.getDirectoryPath(
+        dialogTitle: context.l10n.addWorkspace,
+      );
+    }
     final folder = await _saf.pickDirectory(
       initialUri: initialUri,
       writePermission: true,
@@ -135,21 +137,32 @@ class _HomeScreenState extends State<HomeScreen> {
     return local ?? folder.uri;
   }
 
-  Future<void> _addWorkspace() async {
-    final controller = MorgSettingsScope.controllerOf(context);
-    final location = await _pickFolder();
-    if (location == null || !mounted) return;
+  Future<String?> _askName({
+    required String initial,
+    required String confirm,
+  }) async {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => PromptDialog(
         title: context.l10n.workspaceName,
         hint: context.l10n.workspaceNameHint,
-        confirm: context.l10n.add,
-        initial: Uri.decodeComponent(location).split(RegExp('[:/]')).last,
+        confirm: confirm,
+        initial: initial,
       ),
     );
     final trimmed = name?.trim() ?? '';
-    if (trimmed.isNotEmpty) await controller.setWorkspace(trimmed, location);
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<void> _addWorkspace() async {
+    final controller = MorgSettingsScope.controllerOf(context);
+    final location = await _pickFolder();
+    if (location == null || !mounted) return;
+    final name = await _askName(
+      initial: Uri.decodeComponent(location).split(RegExp('[:/]')).last,
+      confirm: context.l10n.add,
+    );
+    if (name != null) await controller.setWorkspace(name, location);
   }
 
   bool _isMissing(Workspace workspace) => switch (workspace.store) {
@@ -157,28 +170,126 @@ class _HomeScreenState extends State<HomeScreen> {
     _ => false,
   };
 
-  Future<void> _openWorkspace(Workspace workspace) async {
+  Future<Workspace?> _relocate(Workspace workspace) async {
     final controller = MorgSettingsScope.controllerOf(context);
     final store = workspace.store;
-    final lostAccess = switch (store) {
+    final location = await _pickFolder(
+      initialUri: store is SafStore ? store.treeUri : null,
+    );
+    if (location == null) return null;
+    await controller.setWorkspace(workspace.name, location);
+    return Workspaces.of(controller.value.config).all[workspace.name];
+  }
+
+  Future<Workspace?> _accessible(Workspace workspace) async {
+    final lostAccess = switch (workspace.store) {
       SafStore(:final treeUri) => !await _saf.hasPersistedPermission(
         treeUri,
         checkWrite: true,
       ),
       _ => _isMissing(workspace),
     };
-    var target = workspace;
-    if (lostAccess) {
-      final location = await _pickFolder(
-        initialUri: store is SafStore ? store.treeUri : null,
-      );
-      if (location == null) return;
-      await controller.setWorkspace(workspace.name, location);
-      target = Workspaces({
-        workspace.name: location,
-      }, home: userHome()).all[workspace.name]!;
+    return lostAccess ? _relocate(workspace) : workspace;
+  }
+
+  Future<void> _openWorkspace(Workspace workspace) async {
+    final target = await _accessible(workspace);
+    if (target == null || !mounted) return;
+    final config = MorgSettingsScope.of(context).config;
+    final index = NoteRef(target.store, config.indexFile);
+    if (await target.store.exists(index.path)) {
+      if (mounted) _push(DocumentScreen(note: index));
+      return;
     }
-    if (mounted) _push(WorkspaceScreen(workspace: target));
+    if (!mounted) return;
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.noIndexTitle(config.indexFile)),
+        content: Text(context.l10n.noIndexBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.browseFiles),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.l10n.create),
+          ),
+        ],
+      ),
+    );
+    if (create == null || !mounted) return;
+    if (create) {
+      await createNote(index, author: config.author);
+      if (mounted) _push(DocumentScreen(note: index));
+    } else {
+      _push(WorkspaceScreen(workspace: target));
+    }
+  }
+
+  Future<void> _workspaceMenu(Workspace workspace) async {
+    final action = await showModalBottomSheet<_WorkspaceAction>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                workspace.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: Text(workspace.store.location),
+            ),
+            for (final (action, icon, label) in [
+              (
+                _WorkspaceAction.browse,
+                Icons.folder_open,
+                context.l10n.browseFiles,
+              ),
+              (
+                _WorkspaceAction.relocate,
+                Icons.drive_file_move,
+                context.l10n.changeFolder,
+              ),
+              (_WorkspaceAction.rename, Icons.edit, context.l10n.rename),
+              (
+                _WorkspaceAction.remove,
+                Icons.delete_outline,
+                context.l10n.remove,
+              ),
+            ])
+              ListTile(
+                leading: Icon(icon),
+                title: Text(label),
+                onTap: () => Navigator.pop(context, action),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case _WorkspaceAction.browse:
+        if (await _accessible(workspace) case final target? when mounted) {
+          _push(WorkspaceScreen(workspace: target));
+        }
+      case _WorkspaceAction.relocate:
+        await _relocate(workspace);
+      case _WorkspaceAction.rename:
+        final controller = MorgSettingsScope.controllerOf(context);
+        final name = await _askName(
+          initial: workspace.name,
+          confirm: context.l10n.rename,
+        );
+        if (name != null && name != workspace.name) {
+          await controller.renameWorkspace(workspace.name, name);
+        }
+      case _WorkspaceAction.remove:
+        await _removeWorkspace(workspace);
+      case null:
+    }
   }
 
   Future<void> _removeWorkspace(Workspace workspace) async {
@@ -210,9 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final config = MorgSettingsScope.of(context).config;
-    final workspaces = kIsWeb
-        ? null
-        : Workspaces(config.workspaces, home: userHome());
+    final workspaces = kIsWeb ? null : Workspaces.of(config);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Morg'),
@@ -225,6 +334,13 @@ class _HomeScreenState extends State<HomeScreen> {
           const ThemeToggleButton(),
         ],
       ),
+      floatingActionButton: workspaces == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _addWorkspace,
+              icon: const Icon(Icons.create_new_folder),
+              label: Text(context.l10n.addWorkspace),
+            ),
       body: ListView(
         children: [
           if (!_storageGranted)
@@ -242,6 +358,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           if (workspaces != null) ...[
             ListTile(dense: true, title: Text(context.l10n.workspaces)),
+            if (workspaces.all.isEmpty)
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(context.l10n.noWorkspaces),
+              ),
             for (final workspace in workspaces.all.values)
               ListTile(
                 leading: Icon(switch (workspace.store) {
@@ -258,23 +379,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 enabled: _isAndroid || !_isMissing(workspace),
                 onTap: () => _openWorkspace(workspace),
-                onLongPress: () => _removeWorkspace(workspace),
-              ),
-            if (_isAndroid)
-              ListTile(
-                leading: const Icon(Icons.create_new_folder),
-                title: Text(context.l10n.addFolder),
-                subtitle: Text(context.l10n.addFolderSubtitle),
-                onTap: _addWorkspace,
+                onLongPress: () => _workspaceMenu(workspace),
               ),
             const Divider(),
           ],
           ListTile(
             leading: const Icon(Icons.file_open),
             title: Text(context.l10n.openFile),
-            subtitle: Text(
-              kIsWeb ? context.l10n.readOnly : context.l10n.alsoFromCloud,
-            ),
+            subtitle: _isAndroid ? Text(context.l10n.alsoFromCloud) : null,
             onTap: _openFile,
           ),
           ListTile(
@@ -287,3 +399,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+enum _WorkspaceAction { browse, relocate, rename, remove }
