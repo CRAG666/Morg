@@ -4,6 +4,6 @@ java = "17"
 android-sdk = "22.0"
 
 [env]
-ANDROID_HOME = "{{env.HOME}}/.local/share/mise/installs/android-sdk/22.0"
+ANDROID_HOME = "{{ get_env(name='ANDROID_HOME', default=env.HOME ~ '/.local/share/mise/installs/android-sdk/22.0') }}"
 CHROME_EXECUTABLE = "/usr/bin/chromium"
 _.path = ["{{env.ANDROID_HOME}}/cmdline-tools/22.0/bin", "{{env.ANDROID_HOME}}/platform-tools"]

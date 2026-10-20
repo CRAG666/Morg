@@ -83,7 +83,7 @@ class NorgHighlight {
 }
 
 class NorgTheme {
-  const NorgTheme(this.groups);
+  NorgTheme(this.groups);
 
   factory NorgTheme.fromJson(Map<String, Object?> json) => NorgTheme({
     for (final MapEntry(:key, :value) in json.entries)
@@ -91,6 +91,7 @@ class NorgTheme {
   });
 
   final Map<String, NorgHighlight> groups;
+  final _resolved = <String, NorgHighlight>{};
 
   Color get foreground => this['Normal'].foreground!;
 
@@ -99,7 +100,10 @@ class NorgTheme {
   bool defines(String group) =>
       groups.containsKey('$group.norg') || groups.containsKey(group);
 
-  NorgHighlight operator [](String group) {
+  NorgHighlight operator [](String group) =>
+      _resolved[group] ??= _resolve(group);
+
+  NorgHighlight _resolve(String group) {
     for (var name = group; name.isNotEmpty;) {
       if (groups['$name.norg'] ?? groups[name] case final highlight?) {
         return highlight;

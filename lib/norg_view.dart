@@ -1,18 +1,15 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:re_highlight/languages/all.dart';
 import 'package:re_highlight/re_highlight.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'config/concealer_config.dart';
-import 'highlight/bibtex.dart';
+import 'highlight/languages.dart';
 import 'norg/ast.dart';
 import 'settings.dart';
 import 'theme/norg_theme.dart';
 
-final _highlighter = Highlight()
-  ..registerLanguages(builtinAllLanguages)
-  ..registerLanguage('bibtex', langBibtex);
 final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 
 const _todoGroups = {
@@ -73,6 +70,42 @@ Iterable<Heading> _headings(List<Block> blocks) sync* {
   }
 }
 
+sealed class _Row {
+  const _Row(this.depth);
+  final int depth;
+}
+
+class _HeadingRow extends _Row {
+  const _HeadingRow(this.heading, super.depth);
+  final Heading heading;
+}
+
+class _ItemRow extends _Row {
+  const _ItemRow(this.item, this.ordinal, super.depth, {required this.last});
+  final ListItem item;
+  final int ordinal;
+  final bool last;
+}
+
+class _BlockRow extends _Row {
+  const _BlockRow(this.block, super.depth);
+  final Block block;
+}
+
+List<int> _ordinals(List<ListItem> items) {
+  final counters = <int, int>{};
+  int ordinal(ListItem item) {
+    counters.removeWhere((level, _) => level > item.level);
+    if (item.kind == NestableKind.unordered) {
+      counters.remove(item.level);
+      return 0;
+    }
+    return counters.update(item.level, (count) => count + 1, ifAbsent: () => 1);
+  }
+
+  return [for (final item in items) ordinal(item)];
+}
+
 class NorgDocumentView extends StatefulWidget {
   const NorgDocumentView({
     super.key,
@@ -95,8 +128,12 @@ class NorgDocumentView extends StatefulWidget {
 
 class _NorgDocumentViewState extends State<NorgDocumentView> {
   final _collapsed = <int>{};
-  final _headingKeys = <int, GlobalKey>{};
-  final _recognizers = <TapGestureRecognizer>[];
+  final _linkRecognizers = <String, TapGestureRecognizer>{};
+  final _todoRecognizers = <int, TapGestureRecognizer>{};
+  final _highlighted = <(CodeBlock, Brightness), TextSpan?>{};
+  final _scrollController = ScrollController();
+  final _listController = ListController();
+  List<_Row>? _rows;
 
   late ConcealerConfig _icons;
   late NorgTheme _theme;
@@ -112,24 +149,57 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   @override
+  void didUpdateWidget(NorgDocumentView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.blocks != widget.blocks) {
+      _rows = null;
+      _highlighted.clear();
+    }
+  }
+
+  @override
   void dispose() {
-    _disposeRecognizers();
+    for (final recognizer in [
+      ..._linkRecognizers.values,
+      ..._todoRecognizers.values,
+    ]) {
+      recognizer.dispose();
+    }
+    _scrollController.dispose();
+    _listController.dispose();
     super.dispose();
   }
 
-  void _disposeRecognizers() {
-    for (final recognizer in _recognizers) {
-      recognizer.dispose();
+  List<_Row> get _visibleRows => _rows ??= _flatten(widget.blocks, 0, []);
+
+  List<_Row> _flatten(List<Block> blocks, int depth, List<_Row> rows) {
+    for (final block in blocks) {
+      switch (block) {
+        case Heading(:final children, :final line):
+          rows.add(_HeadingRow(block, depth));
+          if (!_collapsed.contains(line)) _flatten(children, depth + 1, rows);
+        case ListBlock(:final items):
+          for (final (index, ordinal) in _ordinals(items).indexed) {
+            final last = index == items.length - 1;
+            rows.add(_ItemRow(items[index], ordinal, depth, last: last));
+          }
+        default:
+          rows.add(_BlockRow(block, depth));
+      }
     }
-    _recognizers.clear();
+    return rows;
   }
+
+  void _toggle(Heading heading) => setState(() {
+    if (!_collapsed.remove(heading.line)) _collapsed.add(heading.line);
+    _rows = null;
+  });
 
   TextStyle _hl(String group, [TextStyle? base]) =>
       _theme[group].apply(base ?? _base);
 
   @override
   Widget build(BuildContext context) {
-    _disposeRecognizers();
     final settings = MorgSettingsScope.of(context);
     _icons = settings.concealer;
     _theme = settings.theme.of(Theme.of(context).brightness);
@@ -142,16 +212,29 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     _charWidth = painter.width;
     painter.dispose();
 
+    final rows = _visibleRows;
     return SelectionArea(
-      child: SingleChildScrollView(
+      child: SuperListView.builder(
+        controller: _scrollController,
+        listController: _listController,
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: _blocks(widget.blocks),
-        ),
+        itemCount: rows.length,
+        itemBuilder: (context, index) => _row(rows[index]),
       ),
     );
   }
+
+  Widget _row(_Row row) => _indented(
+    row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0),
+    Padding(
+      padding: EdgeInsets.only(bottom: row is _ItemRow && !row.last ? 2 : 8),
+      child: switch (row) {
+        _HeadingRow(:final heading) => _headingTitle(heading),
+        _ItemRow(:final item, :final ordinal) => _listItem(item, ordinal),
+        _BlockRow(:final block) => _block(block, _base),
+      },
+    ),
+  );
 
   List<Widget> _blocks(List<Block> blocks, [TextStyle? paragraphStyle]) => [
     for (final block in blocks)
@@ -242,47 +325,38 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     ]);
   }
 
-  Widget _heading(Heading heading) {
+  Widget _heading(Heading heading) => _column([
+    _headingTitle(heading),
+    if (!_collapsed.contains(heading.line) && heading.children.isNotEmpty)
+      _indented(
+        2,
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: _column(_blocks(heading.children)),
+        ),
+      ),
+  ]);
+
+  Widget _headingTitle(Heading heading) {
     final level = heading.level;
     final titleStyle = _hl('@neorg.headings.$level.title');
-    final collapsed = _collapsed.contains(heading.line);
-    final hasChildren = heading.children.isNotEmpty;
-    return Column(
-      key: _headingKeys.putIfAbsent(heading.line, GlobalKey.new),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        GestureDetector(
-          onTap: hasChildren
-              ? () => setState(
-                  () => collapsed
-                      ? _collapsed.remove(heading.line)
-                      : _collapsed.add(heading.line),
-                )
-              : null,
-          child: Text.rich(
+    return GestureDetector(
+      onTap: heading.children.isEmpty ? null : () => _toggle(heading),
+      child: Text.rich(
+        TextSpan(
+          children: [
             TextSpan(
-              children: [
-                TextSpan(
-                  text: '${iconForLevel(_icons.headingIcons, level)} ',
-                  style: _hl('@neorg.headings.$level.prefix'),
-                ),
-                if (heading.status case final status?)
-                  ..._todoSpans(status, heading.line),
-                _spans(heading.title, titleStyle),
-                if (collapsed) TextSpan(text: ' …', style: titleStyle),
-              ],
+              text: '${iconForLevel(_icons.headingIcons, level)} ',
+              style: _hl('@neorg.headings.$level.prefix'),
             ),
-          ),
+            if (heading.status case final status?)
+              ..._todoSpans(status, heading.line),
+            _spans(heading.title, titleStyle),
+            if (_collapsed.contains(heading.line))
+              TextSpan(text: ' …', style: titleStyle),
+          ],
         ),
-        if (!collapsed && hasChildren)
-          _indented(
-            2,
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _column(_blocks(heading.children)),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
@@ -290,71 +364,60 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     TextSpan(
       text: '(${_icons.todoIcons[status]})',
       style: _hl('@neorg.todo_items.${_todoGroups[status]}'),
-      recognizer: _recognizer(
-        widget.onTodoTap == null ? null : () => widget.onTodoTap!(line),
-      ),
+      recognizer: widget.onTodoTap == null
+          ? null
+          : _todoRecognizers.putIfAbsent(
+              line,
+              () =>
+                  TapGestureRecognizer()
+                    ..onTap = () => widget.onTodoTap?.call(line),
+            ),
     ),
     const TextSpan(text: ' '),
   ];
 
-  TapGestureRecognizer? _recognizer(VoidCallback? onTap) {
-    if (onTap == null) return null;
-    final recognizer = TapGestureRecognizer()..onTap = onTap;
-    _recognizers.add(recognizer);
-    return recognizer;
-  }
+  Widget _list(ListBlock list) => _column([
+    for (final (index, ordinal) in _ordinals(list.items).indexed)
+      _indented(
+        list.items[index].level - 1.0,
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: _listItem(list.items[index], ordinal),
+        ),
+      ),
+  ]);
 
-  Widget _list(ListBlock list) {
-    final counters = <int, int>{};
-    return _column([
-      for (final item in list.items)
-        _indented(
-          item.level - 1.0,
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _listItem(ListItem item, int ordinal) {
+    final ordered = item.kind == NestableKind.ordered;
+    final icon = ordered
+        ? formatOrderedIcon(
+            iconForLevel(_icons.orderedIcons, item.level),
+            ordinal,
+          )
+        : iconForLevel(_icons.listIcons, item.level);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$icon ',
+          style: _hl(
+            ordered
+                ? '@neorg.lists.ordered.prefix'
+                : '@neorg.lists.unordered.prefix',
+          ),
+        ),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
               children: [
-                Text(
-                  '${_listIcon(item, counters)} ',
-                  style: _hl(
-                    item.kind == NestableKind.ordered
-                        ? '@neorg.lists.ordered.prefix'
-                        : '@neorg.lists.unordered.prefix',
-                  ),
-                ),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        if (item.status case final status?)
-                          ..._todoSpans(status, item.line),
-                        _spans(item.content, _base),
-                      ],
-                    ),
-                  ),
-                ),
+                if (item.status case final status?)
+                  ..._todoSpans(status, item.line),
+                _spans(item.content, _base),
               ],
             ),
           ),
         ),
-    ]);
-  }
-
-  String _listIcon(ListItem item, Map<int, int> counters) {
-    counters.removeWhere((level, _) => level > item.level);
-    if (item.kind == NestableKind.unordered) {
-      counters.remove(item.level);
-      return iconForLevel(_icons.listIcons, item.level);
-    }
-    final index = counters.update(
-      item.level,
-      (count) => count + 1,
-      ifAbsent: () => 1,
-    );
-    return formatOrderedIcon(
-      iconForLevel(_icons.orderedIcons, item.level),
-      index,
+      ],
     );
   }
 
@@ -378,14 +441,10 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
 
   Widget _code(CodeBlock code) {
     final language = code.language;
-    TextSpan? highlighted;
-    if (language != null && _highlighter.getLanguage(language) != null) {
-      final renderer = TextSpanRenderer(_base, _theme.codeTheme(_base));
-      _highlighter
-          .highlight(code: code.code, language: language)
-          .render(renderer);
-      highlighted = renderer.span;
-    }
+    final highlighted = _highlighted.putIfAbsent((
+      code,
+      Theme.of(context).brightness,
+    ), () => _highlight(code));
     const tag = '@neorg.tags.ranged_verbatim';
     return Container(
       color: _theme['$tag.code_block'].background,
@@ -411,6 +470,18 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
         if (!_icons.codeBlockConceal) Text('@end', style: _hl('$tag.end')),
       ]),
     );
+  }
+
+  TextSpan? _highlight(CodeBlock code) {
+    final language = code.language;
+    if (language == null || codeHighlighter.getLanguage(language) == null) {
+      return null;
+    }
+    final renderer = TextSpanRenderer(_base, _theme.codeTheme(_base));
+    codeHighlighter
+        .highlight(code: code.code, language: language)
+        .render(renderer);
+    return renderer.span;
   }
 
   Widget _table(TableBlock table) {
@@ -590,7 +661,10 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   InlineSpan _link(String target, List<Inline> description, TextStyle style) {
-    final recognizer = _recognizer(() => _followLink(target));
+    final recognizer = _linkRecognizers.putIfAbsent(
+      target,
+      () => TapGestureRecognizer()..onTap = () => _followLink(target),
+    );
     final linkStyle = description.isEmpty
         ? _hl(_linkGroup(target), style)
         : _hl('@neorg.links.description', style);
@@ -601,7 +675,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
             ? [TextSpan(text: _linkLabel(target))]
             : [for (final node in description) _inline(node, linkStyle)],
       ),
-      recognizer!,
+      recognizer,
     );
   }
 
@@ -621,7 +695,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       };
 
   Future<void> _followLink(String target) async {
-    if (_headingKey(target) != null) return _jumpTo(target);
+    if (_headingFor(target) != null) return _jumpTo(target);
     if (widget.onLink case final onLink?) return onLink(target);
     if (Uri.tryParse(target) case final uri? when uri.hasScheme) {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -633,23 +707,30 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   }
 
   void _jumpTo(String location) {
-    final key = _headingKey(location);
-    if (key == null) {
+    final heading = _headingFor(location);
+    if (heading == null) {
       _notify('No se encontró «$location»');
       return;
     }
-    setState(_collapsed.clear);
+    setState(() {
+      _collapsed.clear();
+      _rows = null;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (key.currentContext case final targetContext?) {
-        Scrollable.ensureVisible(
-          targetContext,
-          duration: const Duration(milliseconds: 300),
-        );
-      }
+      final index = _visibleRows.indexWhere(
+        (row) => row is _HeadingRow && row.heading.line == heading.line,
+      );
+      _listController.animateToItem(
+        index: index,
+        scrollController: _scrollController,
+        alignment: 0,
+        duration: (_) => const Duration(milliseconds: 300),
+        curve: (_) => Curves.easeInOut,
+      );
     });
   }
 
-  GlobalKey? _headingKey(String target) {
+  Heading? _headingFor(String target) {
     final match = _linkLocation.firstMatch(target);
     if (match == null) return null;
     final marker = match[1]!;
@@ -659,7 +740,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
           ? marker.length == heading.level
           : marker == '#';
       if (levelMatches && _comparable(plainText(heading.title)) == title) {
-        return _headingKeys.putIfAbsent(heading.line, GlobalKey.new);
+        return heading;
       }
     }
     return null;

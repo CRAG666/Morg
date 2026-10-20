@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: flutter java
+
+      - name: Comprobar que el tag coincide con pubspec.yaml
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+
+      - name: Preparar la firma
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=upload\nstoreFile=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" "$RUNNER_TEMP/upload.jks" > android/key.properties
+
+      - run: flutter build apk --release --split-per-abi
+
+      - name: Publicar la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          build/app/outputs/flutter-apk/*-release.apk
+          --title "Morg $GITHUB_REF_NAME"
+          --generate-notes
+          --verify-tag

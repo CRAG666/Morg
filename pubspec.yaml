@@ -17,6 +17,7 @@ dependencies:
   re_highlight: ^0.0.3
   saf_stream: ^4.0.2
   saf_util: ^3.1.1
+  super_sliver_list: ^0.4.1
   url_launcher: ^6.3.3
 
 dev_dependencies:

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'ast.dart';
 
 const _statuses = {
@@ -41,18 +44,21 @@ final _extension = RegExp(r'^\(([^)]*)\)\s+(.*)$');
 final _tableSeparator = RegExp(r'^[\s|:+\-]+$');
 final _wordChar = RegExp(r'[\p{L}\p{N}]', unicode: true);
 
-List<Block> parseNorg(String source) =>
-    _BlockParser(source.replaceAll('\r\n', '\n').split(RegExp('[\n\r\f]')))
-        .parse();
+List<Block> parseNorg(String source) => _BlockParser(
+  const LineSplitter().convert(
+    source.contains('\f') ? source.replaceAll('\f', '\n') : source,
+  ),
+).parse();
 
 class _BlockParser {
   _BlockParser(this.lines, {this.offset = 0});
 
   final List<String> lines;
   final int offset;
+  late final _trimmed = [for (final line in lines) line.trim()];
   var pos = 0;
 
-  String get current => lines[pos].trim();
+  String get current => _trimmed[pos];
 
   List<Block> parse() {
     final root = <Block>[];
@@ -64,6 +70,10 @@ class _BlockParser {
       final line = current;
       if (line.isEmpty) {
         pos++;
+        continue;
+      }
+      if (!_mayStartBlock(line)) {
+        add(Paragraph(parseInline(_paragraphText())));
         continue;
       }
       if (_delimiterLine.firstMatch(line) case final match?) {
@@ -170,8 +180,9 @@ class _BlockParser {
 
   Block _rangeable(String marker, String title) {
     final isRanged = marker.length == 2;
+    final bodyStart = offset + pos;
     final content = isRanged
-        ? _BlockParser(_collectUntilLine(marker), offset: offset + pos).parse()
+        ? _BlockParser(_collectUntilLine(marker), offset: bodyStart).parse()
         : [
             if (pos < lines.length &&
                 current.isNotEmpty &&
@@ -254,13 +265,18 @@ class _BlockParser {
   }
 }
 
+const _blockStartChars = r'*-~>$^@|=#+._';
+
+bool _mayStartBlock(String line) => _blockStartChars.contains(line[0]);
+
 bool _isBlockStart(String line) =>
-    _headingLine.hasMatch(line) ||
-    _nestableLine.hasMatch(line) ||
-    _delimiterLine.hasMatch(line) ||
-    _rangeableLine.hasMatch(line) ||
-    _rangedTagLine.hasMatch(line) ||
-    _carryoverLine.hasMatch(line);
+    _mayStartBlock(line) &&
+    (_headingLine.hasMatch(line) ||
+        _nestableLine.hasMatch(line) ||
+        _delimiterLine.hasMatch(line) ||
+        _rangeableLine.hasMatch(line) ||
+        _rangedTagLine.hasMatch(line) ||
+        _carryoverLine.hasMatch(line));
 
 (TodoStatus?, String) _splitExtension(String text) {
   final match = _extension.firstMatch(text);
@@ -319,178 +335,258 @@ String _stripPipes(String line) {
   return line.substring(start, end);
 }
 
-bool _isWhitespace(String char) => char.trim().isEmpty;
+const _backslash = 0x5C;
+const _openBrace = 0x7B;
+const _closeBrace = 0x7D;
+const _openBracket = 0x5B;
+const _closeBracket = 0x5D;
+const _lessThan = 0x3C;
+const _greaterThan = 0x3E;
+const _colon = 0x3A;
+const _pipe = 0x7C;
+const _freeFormKey = 0x10000;
 
-bool _isPunctuation(String char) =>
-    !_isWhitespace(char) && !_wordChar.hasMatch(char);
+final _styleCodes = {
+  for (final MapEntry(:key, :value) in _styles.entries)
+    key.codeUnitAt(0): value,
+};
+final _verbatimCodes = {
+  for (final MapEntry(:key, :value) in _verbatims.entries)
+    key.codeUnitAt(0): value,
+};
+final _nullCode = _nullModifier.codeUnitAt(0);
 
-bool _isBoundary(String text, int index) =>
-    index < 0 ||
-    index >= text.length ||
-    _isWhitespace(text[index]) ||
-    _isPunctuation(text[index]);
+final _unicodeWhitespace = <int, bool>{};
+final _unicodeWord = <int, bool>{};
 
-List<Inline> parseInline(String text) {
-  final nodes = <Inline>[];
-  final plain = StringBuffer();
-  void emit(Inline node) {
-    if (plain.isNotEmpty) {
-      nodes.add(TextInline(plain.toString()));
-      plain.clear();
-    }
-    nodes.add(node);
+final _inlineStarts = () {
+  final table = Uint8List(0x80);
+  for (final char in r'\{[<:*/_-!^,`$&%'.split('')) {
+    table[char.codeUnitAt(0)] = 1;
+  }
+  return table;
+}();
+
+bool _isWhitespace(int code) => code < 0x80
+    ? code == 0x20 || (code >= 0x09 && code <= 0x0D)
+    : _unicodeWhitespace[code] ??= String.fromCharCode(code).trim().isEmpty;
+
+bool _isWord(int code) => code < 0x80
+    ? (code >= 0x30 && code <= 0x39) ||
+          ((code | 0x20) >= 0x61 && (code | 0x20) <= 0x7A)
+    : _unicodeWord[code] ??= _wordChar.hasMatch(String.fromCharCode(code));
+
+List<Inline> parseInline(String text) => _InlineParser(text).parse();
+
+class _InlineParser {
+  _InlineParser(this.text) : codes = text.codeUnits;
+
+  final String text;
+  final List<int> codes;
+  final _failedFrom = <int, int>{};
+  final _failedVisits = <int, Uint8List>{};
+
+  int get length => codes.length;
+
+  bool _isBoundary(int index) =>
+      index < 0 || index >= length || !_isWord(codes[index]);
+
+  int _indexOf(int code, int from) {
+    if (from >= (_failedFrom[code] ?? length + 1)) return -1;
+    final found = text.indexOf(String.fromCharCode(code), from);
+    if (found < 0) _failedFrom[code] = from;
+    return found;
   }
 
-  var index = 0;
-  while (index < text.length) {
-    final char = text[index];
-    if (char == r'\' && index + 1 < text.length) {
-      plain.write(text[index + 1]);
-      index += 2;
-      continue;
+  List<Inline> parse() {
+    final nodes = <Inline>[];
+    final plain = StringBuffer();
+    void emit(Inline node) {
+      if (plain.isNotEmpty) {
+        nodes.add(TextInline(plain.toString()));
+        plain.clear();
+      }
+      nodes.add(node);
     }
-    final linkable = _linkable(text, index) ?? _attached(text, index);
-    if (linkable != null) {
-      final (node, next) = linkable;
-      emit(node);
-      index = next;
-      continue;
-    }
-    if (_linkModifier(text, index) case (final node, final next)) {
-      emit(node);
-      index = next;
-      continue;
-    }
-    plain.write(char);
-    index++;
-  }
-  if (plain.isNotEmpty) nodes.add(TextInline(plain.toString()));
-  return nodes;
-}
 
-(Inline, int)? _linkable(String text, int index) {
-  final char = text[index];
-  if (char == '{') {
-    final close = text.indexOf('}', index + 1);
-    if (close <= index + 1) return null;
-    final target = text.substring(index + 1, close);
-    final description = _bracketed(text, close + 1);
-    return description == null
-        ? (LinkInline(target, const []), close + 1)
-        : (LinkInline(target, parseInline(description.$1)), description.$2);
+    var runStart = 0;
+    var index = 0;
+    void flushRun() {
+      if (runStart < index) plain.write(text.substring(runStart, index));
+    }
+
+    while (index < length) {
+      final code = codes[index];
+      if (code >= 0x80 || _inlineStarts[code] == 0) {
+        index++;
+        continue;
+      }
+      if (code == _backslash && index + 1 < length) {
+        flushRun();
+        plain.writeCharCode(codes[index + 1]);
+        index += 2;
+        runStart = index;
+        continue;
+      }
+      final parsed =
+          _linkable(index) ?? _attached(index) ?? _linkModifier(index);
+      if (parsed != null) {
+        flushRun();
+        final (node, next) = parsed;
+        emit(node);
+        index = next;
+        runStart = index;
+        continue;
+      }
+      index++;
+    }
+    flushRun();
+    if (plain.isNotEmpty) nodes.add(TextInline(plain.toString()));
+    return nodes;
   }
-  if (char == '[') {
-    final description = _bracketed(text, index);
-    if (description == null) return null;
-    final (label, next) = description;
-    if (next < text.length && text[next] == '{') {
-      final close = text.indexOf('}', next + 1);
-      if (close > next + 1) {
-        return (
-          LinkInline(text.substring(next + 1, close), parseInline(label)),
-          close + 1,
-        );
+
+  (Inline, int)? _linkable(int index) {
+    final code = codes[index];
+    if (code == _openBrace) {
+      final close = _indexOf(_closeBrace, index + 1);
+      if (close <= index + 1) return null;
+      final target = text.substring(index + 1, close);
+      final description = _bracketed(close + 1);
+      return description == null
+          ? (LinkInline(target, const []), close + 1)
+          : (LinkInline(target, parseInline(description.$1)), description.$2);
+    }
+    if (code == _openBracket) {
+      final description = _bracketed(index);
+      if (description == null) return null;
+      final (label, next) = description;
+      if (next < length && codes[next] == _openBrace) {
+        final close = _indexOf(_closeBrace, next + 1);
+        if (close > next + 1) {
+          return (
+            LinkInline(text.substring(next + 1, close), parseInline(label)),
+            close + 1,
+          );
+        }
+      }
+      return (AnchorInline(parseInline(label)), next);
+    }
+    if (code == _lessThan &&
+        index + 1 < length &&
+        !_isWhitespace(codes[index + 1])) {
+      final close = _indexOf(_greaterThan, index + 1);
+      if (close > index + 1 && !_isWhitespace(codes[close - 1])) {
+        return (TextInline(text.substring(index + 1, close)), close + 1);
       }
     }
-    return (AnchorInline(parseInline(label)), next);
-  }
-  if (char == '<' &&
-      index + 1 < text.length &&
-      !_isWhitespace(text[index + 1])) {
-    final close = text.indexOf('>', index + 1);
-    if (close > index + 1 && !_isWhitespace(text[close - 1])) {
-      return (TextInline(text.substring(index + 1, close)), close + 1);
-    }
-  }
-  return null;
-}
-
-(Inline, int)? _linkModifier(String text, int index) {
-  final isWordBefore = index > 0 && _wordChar.hasMatch(text[index - 1]);
-  if (text[index] != ':' || !isWordBefore || index + 1 >= text.length) {
     return null;
   }
-  final attached = _attached(text, index + 1);
-  if (attached == null) return null;
-  final (node, end) = attached;
-  final closes =
-      end + 1 < text.length &&
-      text[end] == ':' &&
-      _wordChar.hasMatch(text[end + 1]);
-  return (node, closes ? end + 1 : end);
-}
 
-(String, int)? _bracketed(String text, int index) {
-  if (index >= text.length || text[index] != '[') return null;
-  final close = text.indexOf(']', index + 1);
-  if (close <= index + 1) return null;
-  return (text.substring(index + 1, close), close + 1);
-}
+  (Inline, int)? _linkModifier(int index) {
+    if (codes[index] != _colon ||
+        index == 0 ||
+        index + 1 >= length ||
+        !_isWord(codes[index - 1])) {
+      return null;
+    }
+    final attached = _attached(index + 1);
+    if (attached == null) return null;
+    final (node, end) = attached;
+    final closes =
+        end + 1 < length && codes[end] == _colon && _isWord(codes[end + 1]);
+    return (node, closes ? end + 1 : end);
+  }
 
-(Inline, int)? _attached(String text, int index) {
-  final char = text[index];
-  final isModifier =
-      _styles.containsKey(char) ||
-      _verbatims.containsKey(char) ||
-      char == _nullModifier;
-  if (!isModifier ||
-      !_isBoundary(text, index - 1) ||
-      index + 1 >= text.length) {
+  (String, int)? _bracketed(int index) {
+    if (index >= length || codes[index] != _openBracket) return null;
+    final close = _indexOf(_closeBracket, index + 1);
+    if (close <= index + 1) return null;
+    return (text.substring(index + 1, close), close + 1);
+  }
+
+  (Inline, int)? _attached(int index) {
+    final code = codes[index];
+    final isModifier =
+        _styleCodes.containsKey(code) ||
+        _verbatimCodes.containsKey(code) ||
+        code == _nullCode;
+    if (!isModifier || index + 1 >= length) return null;
+    final next = codes[index + 1];
+    if (_isWhitespace(next) || next == code || !_isBoundary(index - 1)) {
+      return null;
+    }
+
+    final freeFormClose = next == _pipe
+        ? _freeFormClose(index + 2, code)
+        : null;
+    final freeForm = freeFormClose != null;
+    final contentStart = index + (freeForm ? 2 : 1);
+    final close = freeFormClose ?? _standardClose(contentStart, code);
+    if (close == null) return null;
+
+    final content = text.substring(contentStart, freeForm ? close - 1 : close);
+    final end = close + 1;
+    if (code == _nullCode) {
+      return (VerbatimInline(VerbatimKind.comment, content), end);
+    }
+    if (_verbatimCodes[code] case final kind?) {
+      return (VerbatimInline(kind, content), end);
+    }
+    return (StyledInline(_styleCodes[code]!, parseInline(content)), end);
+  }
+
+  int? _freeFormClose(int start, int code) {
+    final key = code | _freeFormKey;
+    if (start >= (_failedFrom[key] ?? length + 1)) return null;
+    for (var index = start + 1; index < length; index++) {
+      if (codes[index] == code &&
+          codes[index - 1] == _pipe &&
+          _isBoundary(index + 1)) {
+        return index;
+      }
+    }
+    _failedFrom[key] = start;
     return null;
   }
-  final next = text[index + 1];
-  if (_isWhitespace(next) || next == char) return null;
 
-  final freeFormClose = next == '|'
-      ? _freeFormClose(text, index + 2, char)
-      : null;
-  final freeForm = freeFormClose != null;
-  final contentStart = index + (freeForm ? 2 : 1);
-  final close = freeFormClose ?? _standardClose(text, contentStart, char);
-  if (close == null) return null;
+  int? _standardClose(int start, int code) {
+    if (_verbatimCodes.containsKey(code)) return _verbatimClose(start, code);
+    final failed = _failedVisits[code] ??= Uint8List(length);
+    final visits = <int>[];
+    for (var index = start + 1; index < length; index++) {
+      if (failed[index] == 1) break;
+      visits.add(index);
+      final current = codes[index];
+      if (current == _backslash) {
+        index++;
+        continue;
+      }
+      if (current == _openBrace) {
+        final close = _indexOf(_closeBrace, index);
+        if (close > index) index = close;
+        continue;
+      }
+      if (_closes(index, code)) return index;
+    }
+    for (final index in visits) {
+      failed[index] = 1;
+    }
+    return null;
+  }
 
-  final content = text.substring(contentStart, freeForm ? close - 1 : close);
-  final end = close + 1;
-  if (char == _nullModifier) {
-    return (VerbatimInline(VerbatimKind.comment, content), end);
+  int? _verbatimClose(int start, int code) {
+    if (start >= (_failedFrom[code] ?? length + 1)) return null;
+    for (var index = start + 1; index < length; index++) {
+      if (_closes(index, code)) return index;
+    }
+    _failedFrom[code] = start;
+    return null;
   }
-  if (_verbatims[char] case final kind?) {
-    return (VerbatimInline(kind, content), end);
-  }
-  return (StyledInline(_styles[char]!, parseInline(content)), end);
-}
 
-int? _freeFormClose(String text, int start, String char) {
-  for (var index = start + 1; index < text.length; index++) {
-    if (text[index] == char &&
-        text[index - 1] == '|' &&
-        _isBoundary(text, index + 1)) {
-      return index;
-    }
-  }
-  return null;
-}
-
-int? _standardClose(String text, int start, String char) {
-  final verbatim = _verbatims.containsKey(char);
-  for (var index = start + 1; index < text.length; index++) {
-    final current = text[index];
-    if (!verbatim && current == r'\') {
-      index++;
-      continue;
-    }
-    if (!verbatim && current == '{') {
-      final close = text.indexOf('}', index);
-      if (close > index) index = close;
-      continue;
-    }
-    if (current == char &&
-        !_isWhitespace(text[index - 1]) &&
-        _isBoundary(text, index + 1)) {
-      return index;
-    }
-  }
-  return null;
+  bool _closes(int index, int code) =>
+      codes[index] == code &&
+      !_isWhitespace(codes[index - 1]) &&
+      _isBoundary(index + 1);
 }
 
 extension on String {
