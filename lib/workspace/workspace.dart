@@ -2,15 +2,19 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'store.dart';
+
 final _envVariable = RegExp(r'\$([A-Za-z0-9_]+)');
 final _lineSuffix = RegExp(r'^(.*):(\d+)$');
 final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 
+bool isContentUri(String path) => path.startsWith('content://');
+
 class Workspace {
-  const Workspace(this.name, this.root);
+  const Workspace(this.name, this.store);
 
   final String name;
-  final Directory root;
+  final NoteStore store;
 }
 
 String userHome() => Platform.isAndroid
@@ -33,25 +37,39 @@ class Workspaces {
   Workspaces(Map<String, String> config, {required this.home})
     : all = {
         for (final MapEntry(:key, :value) in config.entries)
-          key: Workspace(key, Directory(expandPath(value, home: home))),
+          key: Workspace(
+            key,
+            isContentUri(value)
+                ? SafStore(value)
+                : LocalStore(Directory(expandPath(value, home: home))),
+          ),
       };
 
   final String home;
   final Map<String, Workspace> all;
 
-  Workspace? containing(String file) {
-    Workspace? best;
-    for (final workspace in all.values) {
-      final root = workspace.root.path;
-      final inside = p.equals(root, file) || p.isWithin(root, file);
-      if (inside && (best == null || root.length > best.root.path.length)) {
-        best = workspace;
+  NoteRef local(String absolutePath) {
+    NoteRef? best;
+    for (final Workspace(:store) in all.values) {
+      if (store is! LocalStore) continue;
+      final root = store.root.path;
+      final inside =
+          p.equals(root, absolutePath) || p.isWithin(root, absolutePath);
+      final isLonger =
+          best == null ||
+          root.length > (best.store as LocalStore).root.path.length;
+      if (inside && isLonger) {
+        best = NoteRef(store, p.relative(absolutePath, from: root));
       }
     }
-    return best;
+    return best ??
+        NoteRef(
+          LocalStore(Directory(p.separator)),
+          p.relative(absolutePath, from: p.separator),
+        );
   }
 
-  LinkTarget resolve(String target, {required File? from}) {
+  LinkTarget resolve(String target, {required NoteRef? from}) {
     if (target.startsWith(':')) return _norgFile(target, from);
     if (target.startsWith('/ ')) {
       return _externalFile(target.substring(2), from);
@@ -63,48 +81,46 @@ class Workspaces {
     return UnsupportedTarget(target);
   }
 
-  LinkTarget _norgFile(String target, File? from) {
-    final close = target.indexOf(':', 1);
-    if (close < 0) return UnsupportedTarget(target);
-    final location = target.substring(close + 1).trim();
-    final path = _norgPath(target.substring(1, close), from);
-    if (path == null) return UnsupportedTarget(target);
-    return NorgFileTarget(
-      File(path.endsWith('.norg') ? path : '$path.norg'),
-      location.isEmpty ? null : location,
-    );
-  }
-
-  String? _norgPath(String path, File? from) {
+  NoteRef? resolvePath(String path, {required NoteRef? from}) {
     if (path.startsWith(r'$')) {
       final slash = path.indexOf('/');
       if (slash < 0) return null;
       final name = path.substring(1, slash);
-      final workspace = name.isEmpty
-          ? (from == null ? null : containing(from.path))
-          : all[name];
-      return workspace == null
-          ? null
-          : p.join(workspace.root.path, path.substring(slash + 1));
+      final store = name.isEmpty ? from?.store : all[name]?.store;
+      final rest = p.posix.normalize(path.substring(slash + 1));
+      return store == null ? null : NoteRef(store, rest);
     }
     if (path.startsWith('~') || p.isAbsolute(path)) {
-      return expandPath(path, home: home);
+      return local(expandPath(path, home: home));
     }
-    return from == null ? null : p.normalize(p.join(from.parent.path, path));
+    if (from == null) return null;
+    final joined = p.posix.normalize(p.posix.join(from.directory, path));
+    if (!joined.startsWith('..')) return NoteRef(from.store, joined);
+    return switch (from.store) {
+      LocalStore(:final root) => local(p.normalize(p.join(root.path, joined))),
+      _ => null,
+    };
   }
 
-  LinkTarget _externalFile(String target, File? from) {
+  LinkTarget _norgFile(String target, NoteRef? from) {
+    final close = target.indexOf(':', 1);
+    if (close < 0) return UnsupportedTarget(target);
+    final location = target.substring(close + 1).trim();
+    final ref = resolvePath(target.substring(1, close), from: from);
+    if (ref == null) return UnsupportedTarget(target);
+    return NorgFileTarget(
+      ref.path.endsWith('.norg') ? ref : NoteRef(ref.store, '${ref.path}.norg'),
+      location.isEmpty ? null : location,
+    );
+  }
+
+  LinkTarget _externalFile(String target, NoteRef? from) {
     final match = _lineSuffix.firstMatch(target);
-    final raw = (match?[1] ?? target).trim();
-    final path = raw.startsWith('/') || raw.startsWith('~')
-        ? expandPath(raw, home: home)
-        : from == null
-        ? null
-        : p.normalize(p.join(from.parent.path, raw));
-    if (path == null) return UnsupportedTarget(target);
-    return p.extension(path) == '.norg'
-        ? NorgFileTarget(File(path), match?[2])
-        : ExternalFileTarget(File(path));
+    final ref = resolvePath((match?[1] ?? target).trim(), from: from);
+    if (ref == null) return UnsupportedTarget(target);
+    return p.extension(ref.path) == '.norg'
+        ? NorgFileTarget(ref, match?[2])
+        : ExternalFileTarget(ref);
   }
 }
 
@@ -118,14 +134,14 @@ class UrlTarget extends LinkTarget {
 }
 
 class NorgFileTarget extends LinkTarget {
-  const NorgFileTarget(this.file, this.location);
-  final File file;
+  const NorgFileTarget(this.ref, this.location);
+  final NoteRef ref;
   final String? location;
 }
 
 class ExternalFileTarget extends LinkTarget {
-  const ExternalFileTarget(this.file);
-  final File file;
+  const ExternalFileTarget(this.ref);
+  final NoteRef ref;
 }
 
 class LocalTarget extends LinkTarget {

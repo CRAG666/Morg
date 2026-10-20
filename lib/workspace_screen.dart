@@ -1,48 +1,46 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import 'document_screen.dart';
+import 'prompt_dialog.dart';
 import 'settings.dart';
 import 'theme_toggle.dart';
+import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
     super.key,
     required this.workspace,
-    required this.directory,
+    this.directory = '',
   });
 
   final Workspace workspace;
-  final Directory directory;
+  final String directory;
 
   @override
   State<WorkspaceScreen> createState() => _WorkspaceScreenState();
 }
 
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
-  late Future<List<FileSystemEntity>> _entries = _list();
+  late Future<List<NoteEntry>> _entries = _list();
 
-  bool get _isRoot =>
-      p.equals(widget.directory.path, widget.workspace.root.path);
+  NoteStore get _store => widget.workspace.store;
 
-  Future<List<FileSystemEntity>> _list() async {
-    final entries = await widget.directory
-        .list()
-        .where((entity) => !p.basename(entity.path).startsWith('.'))
-        .where((entity) => entity is Directory || entity.path.endsWith('.norg'))
-        .toList();
-    return entries..sort((a, b) {
-      final byKind = (a is Directory ? 0 : 1) - (b is Directory ? 0 : 1);
-      return byKind != 0
-          ? byKind
-          : p
-                .basename(a.path)
-                .toLowerCase()
-                .compareTo(p.basename(b.path).toLowerCase());
-    });
+  bool get _isRoot => widget.directory.isEmpty;
+
+  Future<List<NoteEntry>> _list() async {
+    final entries = await _store.list(widget.directory);
+    return entries
+        .where((entry) => !entry.name.startsWith('.'))
+        .where((entry) => entry.isDirectory || entry.name.endsWith('.norg'))
+        .toList()
+      ..sort((a, b) {
+        final byKind = (a.isDirectory ? 0 : 1) - (b.isDirectory ? 0 : 1);
+        return byKind != 0
+            ? byKind
+            : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
   }
 
   void _refresh() => setState(() {
@@ -55,16 +53,17 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     if (mounted) _refresh();
   }
 
-  Future<void> _openNote(File file, {String? contents}) async {
-    if (!await file.exists()) {
+  Future<void> _openNote(String path, {String? contents}) async {
+    final ref = NoteRef(_store, path);
+    if (!await _store.exists(path)) {
       if (!mounted) return;
       await createNote(
-        file,
+        ref,
         author: MorgSettingsScope.of(context).config.author,
         contents: contents,
       );
     }
-    await _open(DocumentScreen.file(file));
+    await _open(DocumentScreen.note(ref));
   }
 
   Future<void> _openJournalToday() async {
@@ -72,7 +71,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
     final entry = switch (config.journalStrategy) {
-      JournalStrategy.nested => p.join(
+      JournalStrategy.nested => p.posix.join(
         '${now.year}',
         two(now.month),
         '${two(now.day)}.norg',
@@ -80,45 +79,45 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       JournalStrategy.flat =>
         '${now.year}-${two(now.month)}-${two(now.day)}.norg',
     };
-    final journal = p.join(widget.workspace.root.path, config.journalFolder);
-    final template = File(p.join(journal, config.journalTemplate));
-    final useTemplate = config.useJournalTemplate && await template.exists();
+    final template = p.posix.join(config.journalFolder, config.journalTemplate);
+    final useTemplate =
+        config.useJournalTemplate && await _store.exists(template);
     await _openNote(
-      File(p.join(journal, entry)),
-      contents: useTemplate ? await template.readAsString() : null,
+      p.posix.join(config.journalFolder, entry),
+      contents: useTemplate ? await _store.read(template) : null,
     );
   }
 
   Future<void> _createNote() async {
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => const _NoteNameDialog(),
+      builder: (_) => const PromptDialog(
+        title: 'Nueva nota',
+        hint: 'nombre o carpeta/nombre',
+        confirm: 'Crear',
+      ),
     );
     final trimmed = name?.trim() ?? '';
     if (trimmed.isEmpty) return;
-    final path = p.join(widget.directory.path, trimmed);
-    await _openNote(File(path.endsWith('.norg') ? path : '$path.norg'));
+    final path = p.posix.join(widget.directory, trimmed);
+    await _openNote(path.endsWith('.norg') ? path : '$path.norg');
   }
 
   @override
   Widget build(BuildContext context) {
     final config = MorgSettingsScope.of(context).config;
-    final index = File(p.join(widget.directory.path, config.indexFile));
-    final relative = p.relative(
-      widget.directory.path,
-      from: widget.workspace.root.path,
-    );
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _isRoot
               ? widget.workspace.name
-              : '${widget.workspace.name}/$relative',
+              : '${widget.workspace.name}/${widget.directory}',
         ),
         actions: [
           IconButton(
             tooltip: 'Índice',
-            onPressed: () => _openNote(index),
+            onPressed: () =>
+                _openNote(p.posix.join(widget.directory, config.indexFile)),
             icon: const Icon(Icons.home_outlined),
           ),
           if (_isRoot)
@@ -141,33 +140,35 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           AsyncSnapshot(:final error?) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('No se pudo leer ${widget.directory.path}:\n$error'),
+              child: Text('No se pudo leer ${_store.location}:\n$error'),
             ),
           ),
           AsyncSnapshot(data: final entries?) => RefreshIndicator(
             onRefresh: () async => _refresh(),
             child: ListView(
               children: [
-                for (final entity in entries)
+                for (final entry in entries)
                   ListTile(
                     leading: Icon(
-                      entity is Directory
+                      entry.isDirectory
                           ? Icons.folder
                           : Icons.description_outlined,
                     ),
                     title: Text(
-                      entity is Directory
-                          ? p.basename(entity.path)
-                          : p.basenameWithoutExtension(entity.path),
+                      entry.isDirectory
+                          ? entry.name
+                          : p.posix.basenameWithoutExtension(entry.name),
                     ),
-                    onTap: () => entity is Directory
+                    onTap: () => entry.isDirectory
                         ? _open(
                             WorkspaceScreen(
                               workspace: widget.workspace,
-                              directory: entity,
+                              directory: entry.path,
                             ),
                           )
-                        : _open(DocumentScreen.file(File(entity.path))),
+                        : _open(
+                            DocumentScreen.note(NoteRef(_store, entry.path)),
+                          ),
                   ),
               ],
             ),
@@ -177,42 +178,4 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       ),
     );
   }
-}
-
-class _NoteNameDialog extends StatefulWidget {
-  const _NoteNameDialog();
-
-  @override
-  State<_NoteNameDialog> createState() => _NoteNameDialogState();
-}
-
-class _NoteNameDialogState extends State<_NoteNameDialog> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Nueva nota'),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      decoration: const InputDecoration(hintText: 'nombre o carpeta/nombre'),
-      onSubmitted: (value) => Navigator.pop(context, value),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      TextButton(
-        onPressed: () => Navigator.pop(context, _controller.text),
-        child: const Text('Crear'),
-      ),
-    ],
-  );
 }

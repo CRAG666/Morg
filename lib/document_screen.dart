@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'editor_screen.dart';
@@ -12,21 +10,22 @@ import 'norg/parser.dart';
 import 'norg_view.dart';
 import 'settings.dart';
 import 'theme_toggle.dart';
+import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 
 class DocumentScreen extends StatefulWidget {
-  DocumentScreen.file(File this.file, {super.key, this.initialLocation})
+  DocumentScreen.note(NoteRef this.note, {super.key, this.initialLocation})
     : source = null,
-      name = p.basenameWithoutExtension(file.path);
+      name = note.name;
 
   const DocumentScreen.source(
     String this.source, {
     super.key,
     required this.name,
-  }) : file = null,
+  }) : note = null,
        initialLocation = null;
 
-  final File? file;
+  final NoteRef? note;
   final String? source;
   final String name;
   final String? initialLocation;
@@ -48,7 +47,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
 
   Future<void> _load() async {
     try {
-      final source = widget.source ?? await widget.file!.readAsString();
+      final note = widget.note;
+      final source = widget.source ?? await note!.store.read(note.path);
       setState(() {
         _source = source;
         _blocks = parseNorg(source);
@@ -60,7 +60,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
   }
 
   Future<void> _write(String source) async {
-    await widget.file!.writeAsString(touchUpdated(source, DateTime.now()));
+    final note = widget.note!;
+    await note.store.write(note.path, touchUpdated(source, DateTime.now()));
     await _load();
   }
 
@@ -68,8 +69,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
     if (edited != _source) await _write(edited);
   }
 
-  Future<void> _toggleTodo(int line) =>
-      _write(cycleTodo(_source!, _blocks, line));
+  Future<void> _toggleTodo(int line) async {
+    try {
+      await _write(cycleTodo(_source!, _blocks, line));
+    } on FileSystemException catch (error) {
+      _notify('No se pudo guardar: $error');
+    }
+  }
 
   Workspaces get _workspaces => Workspaces(
     MorgSettingsScope.of(context).config.workspaces,
@@ -81,26 +87,32 @@ class _DocumentScreenState extends State<DocumentScreen> {
           .showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _openLink(String target) async {
-    switch (_workspaces.resolve(target, from: widget.file)) {
+    try {
+      await _followTarget(_workspaces.resolve(target, from: widget.note));
+    } on FileSystemException catch (error) {
+      _notify('No se pudo abrir $target: $error');
+    }
+  }
+
+  Future<void> _followTarget(LinkTarget target) async {
+    switch (target) {
       case UrlTarget(:final uri):
         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
           _notify('No se pudo abrir $uri');
         }
-      case NorgFileTarget(:final file, :final location):
-        if (!await file.exists() && !await _confirmCreate(file)) return;
+      case NorgFileTarget(:final ref, :final location):
+        if (!await ref.store.exists(ref.path) && !await _confirmCreate(ref)) {
+          return;
+        }
         if (!mounted) return;
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) =>
-                DocumentScreen.file(file, initialLocation: location),
+            builder: (_) => DocumentScreen.note(ref, initialLocation: location),
           ),
         );
-        if (widget.file != null) await _load();
-      case ExternalFileTarget(:final file):
-        final result = await OpenFilex.open(file.path);
-        if (result.type != ResultType.done) {
-          _notify('No se pudo abrir ${file.path}: ${result.message}');
-        }
+        if (widget.note != null) await _load();
+      case ExternalFileTarget(:final ref):
+        await ref.store.openExternally(ref.path);
       case LocalTarget(:final location):
         _notify('No se encontró «$location»');
       case UnsupportedTarget(:final target):
@@ -108,12 +120,12 @@ class _DocumentScreenState extends State<DocumentScreen> {
     }
   }
 
-  Future<bool> _confirmCreate(File file) async {
+  Future<bool> _confirmCreate(NoteRef ref) async {
     final create = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('La nota no existe'),
-        content: Text('¿Crear ${file.path}?'),
+        content: Text('¿Crear ${ref.path} en ${ref.store.location}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -127,7 +139,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
       ),
     );
     if (!(create ?? false) || !mounted) return false;
-    await createNote(file, author: MorgSettingsScope.of(context).config.author);
+    await createNote(ref, author: MorgSettingsScope.of(context).config.author);
     return true;
   }
 
@@ -135,12 +147,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
     if (Uri.tryParse(path) case final uri? when uri.hasScheme) {
       return NetworkImage(path);
     }
-    final file = widget.file;
-    if (file == null) return null;
-    final resolved = path.startsWith('~') || p.isAbsolute(path)
-        ? expandPath(path, home: userHome())
-        : p.normalize(p.join(file.parent.path, path));
-    return FileImage(File(resolved));
+    final ref = _workspaces.resolvePath(path, from: widget.note);
+    return ref == null ? null : StoreImage(ref);
   }
 
   Future<void> _edit() => Navigator.of(context).push(
@@ -153,7 +161,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   @override
   Widget build(BuildContext context) {
     final meta = _blocks.whereType<DocumentMeta>().firstOrNull;
-    final editable = widget.file != null && _source != null;
+    final editable = widget.note != null && _source != null;
     return Scaffold(
       appBar: AppBar(
         title: Text(meta?.fields['title'] ?? widget.name),
@@ -183,17 +191,11 @@ class _DocumentScreenState extends State<DocumentScreen> {
 }
 
 Future<void> createNote(
-  File file, {
+  NoteRef ref, {
   required String author,
   String? contents,
-}) async {
-  await file.parent.create(recursive: true);
-  await file.writeAsString(
-    contents ??
-        metadataTemplate(
-          title: p.basenameWithoutExtension(file.path),
-          author: author,
-          now: DateTime.now(),
-        ),
-  );
-}
+}) => ref.store.write(
+  ref.path,
+  contents ??
+      metadataTemplate(title: ref.name, author: author, now: DateTime.now()),
+);

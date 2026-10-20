@@ -207,6 +207,20 @@ class SettingsController extends ValueNotifier<MorgSettings> {
 
   Future<void> reset() async => save(await store.defaultConfig());
 
+  Future<void> setWorkspace(String name, String? location) async {
+    final json = jsonDecode(value.config.source) as Map<String, Object?>;
+    Map<String, Object?> child(Map<String, Object?> parent, String key) =>
+        (parent[key] ??= <String, Object?>{}) as Map<String, Object?>;
+    final dirman = child(child(child(json, 'load'), 'core.dirman'), 'config');
+    final workspaces = child(dirman, 'workspaces');
+    if (location == null) {
+      workspaces.remove(name);
+    } else {
+      workspaces[name] = location;
+    }
+    await save(const JsonEncoder.withIndent('  ').convert(json));
+  }
+
   Future<String> importTheme(String source) => store.importTheme(source);
 }
 
