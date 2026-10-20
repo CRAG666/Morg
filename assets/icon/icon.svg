@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <radialGradient id="petal" cx="0" cy="0" r="330" gradientUnits="userSpaceOnUse">
+    <stop offset="0.12" stop-color="#fdf0f4"/>
+    <stop offset="0.45" stop-color="#f2ccd8"/>
+    <stop offset="0.85" stop-color="#e6a0b8"/>
+    <stop offset="1" stop-color="#d98aa6"/>
+  </radialGradient>
+  <radialGradient id="center" cx="-12" cy="-12" r="60" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#f5dc8a"/>
+    <stop offset="1" stop-color="#c9a640"/>
+  </radialGradient>
+  <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#26362b"/>
+    <stop offset="1" stop-color="#141a14"/>
+  </linearGradient>
+</defs>
+<rect width="1024" height="1024" rx="224" fill="url(#background)"/>
+<g transform="translate(512 512) scale(1.05)">
+  <circle r="115" fill="#f8dde6"/>
+  <g fill="url(#petal)" stroke="#c97b97" stroke-opacity="0.45" stroke-width="4" stroke-linejoin="round">
+    <path d="M 0,-40 C -95,-70 -150,-185 -105,-285 C -80,-335 -30,-330 -12,-305 L 0,-282 L 12,-305 C 30,-330 80,-335 105,-285 C 150,-185 95,-70 0,-40 Z" transform="rotate(0)"/>
+    <path d="M 0,-40 C -95,-70 -150,-185 -105,-285 C -80,-335 -30,-330 -12,-305 L 0,-282 L 12,-305 C 30,-330 80,-335 105,-285 C 150,-185 95,-70 0,-40 Z" transform="rotate(72)"/>
+    <path d="M 0,-40 C -95,-70 -150,-185 -105,-285 C -80,-335 -30,-330 -12,-305 L 0,-282 L 12,-305 C 30,-330 80,-335 105,-285 C 150,-185 95,-70 0,-40 Z" transform="rotate(144)"/>
+    <path d="M 0,-40 C -95,-70 -150,-185 -105,-285 C -80,-335 -30,-330 -12,-305 L 0,-282 L 12,-305 C 30,-330 80,-335 105,-285 C 150,-185 95,-70 0,-40 Z" transform="rotate(216)"/>
+    <path d="M 0,-40 C -95,-70 -150,-185 -105,-285 C -80,-335 -30,-330 -12,-305 L 0,-282 L 12,-305 C 30,-330 80,-335 105,-285 C 150,-185 95,-70 0,-40 Z" transform="rotate(288)"/>
+  </g>
+  <g>
+    <line x1="16.1" y1="-49.5" x2="31.5" y2="-97.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="31.5" cy="-97.0" r="11" fill="#e0c060"/>
+    <line x1="42.1" y1="-30.6" x2="71.2" y2="-51.7" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="71.2" cy="-51.7" r="11" fill="#e0c060"/>
+    <line x1="52.0" y1="-0.0" x2="102.0" y2="-0.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="102.0" cy="-0.0" r="11" fill="#e0c060"/>
+    <line x1="42.1" y1="30.6" x2="71.2" y2="51.7" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="71.2" cy="51.7" r="11" fill="#e0c060"/>
+    <line x1="16.1" y1="49.5" x2="31.5" y2="97.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="31.5" cy="97.0" r="11" fill="#e0c060"/>
+    <line x1="-16.1" y1="49.5" x2="-27.2" y2="83.7" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-27.2" cy="83.7" r="11" fill="#e0c060"/>
+    <line x1="-42.1" y1="30.6" x2="-82.5" y2="60.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-82.5" cy="60.0" r="11" fill="#e0c060"/>
+    <line x1="-52.0" y1="0.0" x2="-88.0" y2="0.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-88.0" cy="0.0" r="11" fill="#e0c060"/>
+    <line x1="-42.1" y1="-30.6" x2="-82.5" y2="-60.0" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-82.5" cy="-60.0" r="11" fill="#e0c060"/>
+    <line x1="-16.1" y1="-49.5" x2="-27.2" y2="-83.7" stroke="#e0c060" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="-27.2" cy="-83.7" r="11" fill="#e0c060"/>
+  </g>
+  <circle r="50" fill="url(#center)"/>
+</g>
+</svg>

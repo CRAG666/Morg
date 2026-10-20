@@ -17,11 +17,11 @@ jobs:
         with:
           install_args: flutter java
 
-      - name: Comprobar que el tag coincide con pubspec.yaml
+      - name: Check that the tag matches pubspec.yaml
         run: |
           test "${GITHUB_REF_NAME#v}" = "$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
 
-      - name: Preparar la firma
+      - name: Set up release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -32,7 +32,7 @@ jobs:
 
       - run: flutter build apk --release --split-per-abi
 
-      - name: Publicar la release
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >

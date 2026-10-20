@@ -17,7 +17,7 @@ Toca el título de una sección para plegarla o desplegarla.
   Se pueden anidar: */negrita y cursiva/*, *texto _subrayado_ en negrita*.
   Los modificadores de forma libre aceptan espacios: `| código con espacios |`.
   Los caracteres se escapan con barra invertida: \*esto no es negrita\*.
-  Un comentario %invisible% no se muestra.
+  Un comentario %oculto% se muestra atenuado.
 
 * Listas
 ** Desordenadas
@@ -100,7 +100,7 @@ Toca el título de una sección para plegarla o desplegarla.
   |end
 
   |comment
-  Esto es un comentario y no se renderiza.
+  Esto es un comentario.
   |end
 
   |example

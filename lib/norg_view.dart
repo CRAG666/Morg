@@ -9,6 +9,7 @@ import 'highlight/languages.dart';
 import 'norg/ast.dart';
 import 'settings.dart';
 import 'theme/norg_theme.dart';
+import 'l10n/l10n.dart';
 
 final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 
@@ -699,17 +700,17 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     if (widget.onLink case final onLink?) return onLink(target);
     if (Uri.tryParse(target) case final uri? when uri.hasScheme) {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        _notify('No se pudo abrir $target');
+        _notify((l10n) => l10n.couldNotOpen(target));
       }
       return;
     }
-    _notify('Destino no soportado: $target');
+    _notify((l10n) => l10n.unsupportedLink(target));
   }
 
   void _jumpTo(String location) {
     final heading = _headingFor(location);
     if (heading == null) {
-      _notify('No se encontró «$location»');
+      _notify((l10n) => l10n.notFound(location));
       return;
     }
     setState(() {
@@ -749,7 +750,9 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   String _comparable(String title) =>
       title.replaceAll(RegExp(r'[\s\\]'), '').toLowerCase();
 
-  void _notify(String message) =>
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+  void _notify(String Function(AppLocalizations l10n) message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message(context.l10n))));
+  }
 }

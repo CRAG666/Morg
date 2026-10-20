@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/l10n.dart';
+
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
     super.key,
@@ -37,9 +39,9 @@ class _EditorScreenState extends State<EditorScreen> {
       setState(() => _saved = source);
     } on Exception catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('No se pudo guardar: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.saveFailed('$error'))),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -50,16 +52,16 @@ class _EditorScreenState extends State<EditorScreen> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cambios sin guardar'),
-        content: const Text('¿Descartar los cambios?'),
+        title: Text(context.l10n.unsavedChangesTitle),
+        content: Text(context.l10n.discardChangesQuestion),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Seguir editando'),
+            child: Text(context.l10n.keepEditing),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Descartar'),
+            child: Text(context.l10n.discard),
           ),
         ],
       ),
@@ -80,7 +82,7 @@ class _EditorScreenState extends State<EditorScreen> {
           title: Text(_dirty ? '${widget.title} •' : widget.title),
           actions: [
             IconButton(
-              tooltip: 'Guardar',
+              tooltip: context.l10n.save,
               onPressed: _dirty && !_saving ? _save : null,
               icon: const Icon(Icons.save),
             ),

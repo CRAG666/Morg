@@ -1,4 +1,4 @@
--- Uso: nvim --headless -c 'luafile tool/export_nvim_theme.lua' archivo.norg  (escribe <colorscheme>.json o $MORG_THEME_OUT)
+-- Usage: nvim --headless -c 'luafile tool/export_nvim_theme.lua' some.norg  (writes <colorscheme>.json or $MORG_THEME_OUT)
 local code_groups = {
   'Normal', 'Comment', 'Special',
   '@keyword', '@keyword.function', '@keyword.return', '@keyword.import', '@keyword.directive',

@@ -28,7 +28,7 @@ class SafStore implements NoteStore {
     if (segments.isEmpty) return treeUri;
     final document = await _util.child(treeUri, segments);
     if (document == null) {
-      throw FileSystemException('No existe en la nube', path);
+      throw FileSystemException('Not found in the cloud folder', path);
     }
     return document.uri;
   }
@@ -100,13 +100,13 @@ class SafFileStore implements NoteStore {
 
   void _check(String path) {
     if (path != fileName) {
-      throw FileSystemException('Solo se abrió $fileName', path);
+      throw FileSystemException('Only $fileName was opened', path);
     }
   }
 
   @override
   Future<List<NoteEntry>> list(String directory) =>
-      throw UnsupportedError('Un archivo suelto no tiene carpeta');
+      throw UnsupportedError('A single opened file has no folder');
 
   @override
   Future<bool> exists(String path) async => path == fileName;
@@ -125,7 +125,7 @@ class SafFileStore implements NoteStore {
 
   @override
   Future<void> openExternally(String path) =>
-      throw FileSystemException('Archivo suelto: sin carpeta', path);
+      throw FileSystemException('A single opened file has no folder', path);
 }
 
 Future<T> _saf<T>(String path, Future<T> Function() action) async {

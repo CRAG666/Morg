@@ -32,10 +32,10 @@ class MorgConfig {
     try {
       json = jsonDecode(source);
     } on FormatException catch (error) {
-      throw FormatException('JSON inválido: ${error.message}', source);
+      throw FormatException('Invalid JSON: ${error.message}', source);
     }
     if (json is! Map<String, Object?>) {
-      throw const FormatException('La configuración debe ser un objeto JSON');
+      throw const FormatException('The configuration must be a JSON object');
     }
     final modules = _object(json['load'], 'load');
     final concealer = _object(
@@ -69,7 +69,7 @@ class MorgConfig {
           key: value is String
               ? value
               : throw FormatException(
-                  'La ruta del workspace "$key" no es texto',
+                  'The path of workspace "$key" must be a string',
                 ),
       },
       defaultWorkspace: dirman['default_workspace'] as String?,
@@ -83,9 +83,7 @@ class MorgConfig {
       journalStrategy: switch (strategy) {
         'nested' => JournalStrategy.nested,
         'flat' => JournalStrategy.flat,
-        _ => throw FormatException(
-          'Estrategia de journal no soportada: $strategy',
-        ),
+        _ => throw FormatException('Unsupported journal strategy: $strategy'),
       },
       journalTemplate: journal['template_name'] as String? ?? 'template.norg',
       useJournalTemplate: journal['use_template'] as bool? ?? true,
@@ -147,7 +145,7 @@ class SettingsStore {
     final settings = await _settings(MorgConfig.parse(source));
     final file = _configFile;
     if (file == null) {
-      throw UnsupportedError('Sin almacenamiento en esta plataforma');
+      throw UnsupportedError('No storage on this platform');
     }
     await file.parent.create(recursive: true);
     await file.writeAsString(source);
@@ -169,7 +167,7 @@ class SettingsStore {
     final theme = NorgThemeFamily.fromJson(jsonDecode(source));
     final themes = _themesDirectory;
     if (themes == null) {
-      throw UnsupportedError('Sin almacenamiento en esta plataforma');
+      throw UnsupportedError('No storage on this platform');
     }
     await themes.create(recursive: true);
     await File(p.join(themes.path, '${theme.name}.json')).writeAsString(source);
@@ -194,7 +192,7 @@ class SettingsStore {
     if (_bundledThemes.contains(name)) {
       return bundle.loadString('assets/themes/$name.json');
     }
-    throw FormatException('No existe el tema "$name"');
+    throw FormatException('Theme "$name" does not exist');
   }
 }
 
@@ -241,5 +239,5 @@ class MorgSettingsScope extends InheritedNotifier<SettingsController> {
 Map<String, Object?> _object(Object? value, String name) => switch (value) {
   null => const {},
   Map<String, Object?>() => value,
-  _ => throw FormatException('"$name" debe ser un objeto'),
+  _ => throw FormatException('"$name" must be an object'),
 };

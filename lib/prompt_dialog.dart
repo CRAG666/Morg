@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/l10n.dart';
+
 class PromptDialog extends StatefulWidget {
   const PromptDialog({
     super.key,
@@ -39,7 +41,7 @@ class _PromptDialogState extends State<PromptDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
+        child: Text(context.l10n.cancel),
       ),
       TextButton(
         onPressed: () => Navigator.pop(context, _controller.text),

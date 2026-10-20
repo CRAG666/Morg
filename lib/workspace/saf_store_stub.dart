@@ -4,7 +4,7 @@ import 'store.dart';
 
 abstract class _WebUnsupportedStore implements NoteStore {
   Never _unsupported() =>
-      throw UnsupportedError('El acceso a la nube solo existe en Android');
+      throw UnsupportedError('Cloud folders are only available on Android');
 
   @override
   Future<List<NoteEntry>> list(String directory) => _unsupported();

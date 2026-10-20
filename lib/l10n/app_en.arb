@@ -1,0 +1,155 @@
+{
+  "@@locale": "en",
+  "themeLight": "Light theme",
+  "themeDark": "Dark theme",
+  "saveFailed": "Could not save: {error}",
+  "@saveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unsavedChangesTitle": "Unsaved changes",
+  "discardChangesQuestion": "Discard your changes?",
+  "keepEditing": "Keep editing",
+  "discard": "Discard",
+  "save": "Save",
+  "themeImported": "Theme \"{name}\" imported. Enable it with \"theme\": \"{name}\".",
+  "@themeImported": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pickThemeFile": "Exported theme (.json)",
+  "resetConfigTitle": "Reset configuration",
+  "resetConfigBody": "morg.json will be replaced with the default configuration.",
+  "cancel": "Cancel",
+  "reset": "Reset",
+  "settings": "Settings",
+  "editConfig": "Edit configuration",
+  "editConfigSubtitle": "morg.json — same structure as neorg.setup()",
+  "importTheme": "Import Neovim theme",
+  "currentTheme": "Current theme: {name}",
+  "@currentTheme": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreDefaults": "Restore default configuration",
+  "couldNotOpen": "Could not open {target}",
+  "@couldNotOpen": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "couldNotOpenBecause": "Could not open {target}: {error}",
+  "@couldNotOpenBecause": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notFound": "Not found: “{location}”",
+  "@notFound": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "unsupportedLink": "Unsupported link: {target}",
+  "@unsupportedLink": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "noteMissingTitle": "This note does not exist",
+  "createNoteQuestion": "Create {path} in {location}?",
+  "@createNoteQuestion": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "create": "Create",
+  "edit": "Edit",
+  "couldNotRead": "Could not read: {error}",
+  "@couldNotRead": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "couldNotReadAt": "Could not read {location}:\n{error}",
+  "@couldNotReadAt": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "newNote": "New note",
+  "newNoteHint": "name or folder/name",
+  "index": "Index",
+  "journalToday": "Today's journal",
+  "syncConflict": "Syncthing conflict",
+  "workspaceName": "Workspace name",
+  "workspaceNameHint": "same as in Neovim, e.g. notes",
+  "add": "Add",
+  "removeWorkspace": "Remove “{name}”",
+  "@removeWorkspace": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removeWorkspaceBody": "It is removed from morg.json. No files are deleted.",
+  "remove": "Remove",
+  "fileAccess": "File access",
+  "fileAccessBody": "Needed for local workspaces; cloud folders work without it.",
+  "grant": "Grant",
+  "workspaces": "Workspaces",
+  "workspaceMissing": "Not on this phone · tap to choose its folder",
+  "addFolder": "Add folder…",
+  "addFolderSubtitle": "Syncthing, Nextcloud, OneDrive, etc.",
+  "openFile": "Open file…",
+  "pickNorgFile": "Open a Norg file",
+  "readOnly": "Read only",
+  "alsoFromCloud": "Also from the cloud",
+  "norgGuide": "Norg guide",
+  "guideAsset": "assets/guide.norg",
+  "importConfig": "Import configuration",
+  "importConfigSubtitle": "Replace morg.json with a file, e.g. from your synced notes",
+  "pickConfigFile": "Configuration file (morg.json)",
+  "configImported": "Configuration imported",
+  "invalidFile": "Invalid file: {error}",
+  "@invalidFile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
+}

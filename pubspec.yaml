@@ -1,7 +1,7 @@
 name: morg
-description: "Visor de documentos Norg."
+description: "Mobile viewer and editor for Norg (Neorg) notes."
 publish_to: 'none'
-version: 0.1.1+2
+version: 0.2.0+3
 
 environment:
   sdk: ^3.13.5
@@ -10,6 +10,9 @@ dependencies:
   file_picker: ^13.1.0
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   open_filex: ^5.0.0
   path: ^1.9.1
   path_provider: ^2.1.6
@@ -24,11 +27,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
+    - assets/guide.norg
     - assets/guia.norg
     - assets/config/
     - assets/themes/
@@ -47,3 +53,17 @@ flutter:
     - family: SymbolsNerdFontMono
       fonts:
         - asset: assets/fonts/SymbolsNerdFontMono-Regular.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: "#192019"
+  adaptive_icon_foreground: assets/icon/foreground.png
+  adaptive_icon_monochrome: assets/icon/monochrome.png
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/icon/icon.png
+    background_color: "#192019"
+    theme_color: "#192019"

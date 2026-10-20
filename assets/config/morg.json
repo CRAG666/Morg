@@ -5,33 +5,63 @@
       "config": {
         "icon_preset": "basic",
         "icons": {
-          "code_block": { "conceal": true },
-          "delimiter": { "horizontal_line": { "icon": "━" } },
-          "definition": {
-            "single": { "icon": "🔖 " },
-            "multi_prefix": { "icon": "󰉾 " },
-            "multi_suffix": { "icon": "󰝗 " }
+          "code_block": {
+            "conceal": true
           },
-          "list": { "icons": ["✿"] },
-          "quote": { "icons": ["󰇙"] },
-          "heading": { "icons": ["🌸 ", "🌼 ", "🌺 ", "💠 ", "💮 ", "🪷 "] }
+          "delimiter": {
+            "horizontal_line": {
+              "icon": "━"
+            }
+          },
+          "definition": {
+            "single": {
+              "icon": "🔖 "
+            },
+            "multi_prefix": {
+              "icon": "󰉾 "
+            },
+            "multi_suffix": {
+              "icon": "󰝗 "
+            }
+          },
+          "list": {
+            "icons": [
+              "✿"
+            ]
+          },
+          "quote": {
+            "icons": [
+              "󰇙"
+            ]
+          },
+          "heading": {
+            "icons": [
+              "🌸 ",
+              "🌼 ",
+              "🌺 ",
+              "💠 ",
+              "💮 ",
+              "🪷 "
+            ]
+          }
         }
       }
     },
     "core.esupports.metagen": {
-      "config": { "author": "think-crag" }
+      "config": {
+        "author": ""
+      }
     },
     "core.journal": {
-      "config": { "journal_folder": "journal", "strategy": "nested" }
+      "config": {
+        "journal_folder": "journal",
+        "strategy": "nested"
+      }
     },
     "core.dirman": {
       "config": {
         "workspaces": {
-          "life": "~/Documents/Org/Life/",
-          "work": "~/Documents/Org/Work/",
-          "master": "~/Documents/Projects/Postgraduate_studies/Master/Notes/",
-          "phd": "~/Documents/Projects/Postgraduate_studies/PhD/Notes/",
-          "lectures": "~/Documents/Projects/Postgraduate_studies/lectures"
+          "notes": "~/Documents/Notes"
         }
       }
     }

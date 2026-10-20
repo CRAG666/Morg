@@ -12,6 +12,7 @@ import 'settings.dart';
 import 'theme_toggle.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
+import 'l10n/l10n.dart';
 
 class DocumentScreen extends StatefulWidget {
   DocumentScreen.note(NoteRef this.note, {super.key, this.initialLocation})
@@ -73,7 +74,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
     try {
       await _write(cycleTodo(_source!, _blocks, line));
     } on FileSystemException catch (error) {
-      _notify('No se pudo guardar: $error');
+      _notify((l10n) => l10n.saveFailed('$error'));
     }
   }
 
@@ -82,15 +83,17 @@ class _DocumentScreenState extends State<DocumentScreen> {
     home: userHome(),
   );
 
-  void _notify(String message) =>
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+  void _notify(String Function(AppLocalizations l10n) message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message(context.l10n))));
+  }
 
   Future<void> _openLink(String target) async {
     try {
       await _followTarget(_workspaces.resolve(target, from: widget.note));
     } on FileSystemException catch (error) {
-      _notify('No se pudo abrir $target: $error');
+      _notify((l10n) => l10n.couldNotOpenBecause(target, '$error'));
     }
   }
 
@@ -98,7 +101,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
     switch (target) {
       case UrlTarget(:final uri):
         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-          _notify('No se pudo abrir $uri');
+          _notify((l10n) => l10n.couldNotOpen('$uri'));
         }
       case NorgFileTarget(:final ref, :final location):
         if (!await ref.store.exists(ref.path) && !await _confirmCreate(ref)) {
@@ -114,9 +117,9 @@ class _DocumentScreenState extends State<DocumentScreen> {
       case ExternalFileTarget(:final ref):
         await ref.store.openExternally(ref.path);
       case LocalTarget(:final location):
-        _notify('No se encontró «$location»');
+        _notify((l10n) => l10n.notFound(location));
       case UnsupportedTarget(:final target):
-        _notify('Destino no soportado: $target');
+        _notify((l10n) => l10n.unsupportedLink(target));
     }
   }
 
@@ -124,16 +127,18 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final create = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('La nota no existe'),
-        content: Text('¿Crear ${ref.path} en ${ref.store.location}?'),
+        title: Text(context.l10n.noteMissingTitle),
+        content: Text(
+          context.l10n.createNoteQuestion(ref.path, ref.store.location),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Crear'),
+            child: Text(context.l10n.create),
           ),
         ],
       ),
@@ -168,7 +173,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
         actions: [
           if (editable)
             IconButton(
-              tooltip: 'Editar',
+              tooltip: context.l10n.edit,
               onPressed: _edit,
               icon: const Icon(Icons.edit),
             ),
@@ -176,7 +181,9 @@ class _DocumentScreenState extends State<DocumentScreen> {
         ],
       ),
       body: switch ((_error, _source)) {
-        (final error?, _) => Center(child: Text('No se pudo leer: $error')),
+        (final error?, _) => Center(
+          child: Text(context.l10n.couldNotRead('$error')),
+        ),
         (_, null) => const Center(child: CircularProgressIndicator()),
         _ => NorgDocumentView(
           blocks: _blocks,

@@ -18,6 +18,7 @@ import 'theme_toggle.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 import 'workspace_screen.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,8 @@ class MorgApp extends StatelessWidget {
       builder: (context, mode, _) => MaterialApp(
         title: 'Morg',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: _theme(family.light, Brightness.light),
         darkTheme: _theme(family.dark, Brightness.dark),
         themeMode: mode,
@@ -101,7 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _push(DocumentScreen.note(NoteRef(store, document.name)));
       return;
     }
-    final file = await FilePicker.pickFile(dialogTitle: 'Abrir archivo Norg');
+    final file = await FilePicker.pickFile(
+      dialogTitle: context.l10n.pickNorgFile,
+    );
     if (file == null || !mounted) return;
     final path = kIsWeb ? null : file.path;
     if (path != null) {
@@ -114,8 +119,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openGuide() async {
-    final source = await rootBundle.loadString('assets/guia.norg');
-    _push(DocumentScreen.source(source, name: 'guia'));
+    final asset = context.l10n.guideAsset;
+    final source = await rootBundle.loadString(asset);
+    _push(DocumentScreen.source(source, name: 'guide'));
   }
 
   Future<String?> _pickFolder({String? initialUri}) async {
@@ -136,9 +142,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => PromptDialog(
-        title: 'Nombre del workspace',
-        hint: 'el mismo que en Neovim, p. ej. phd',
-        confirm: 'Añadir',
+        title: context.l10n.workspaceName,
+        hint: context.l10n.workspaceNameHint,
+        confirm: context.l10n.add,
         initial: Uri.decodeComponent(location).split(RegExp('[:/]')).last,
       ),
     );
@@ -180,18 +186,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final remove = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Quitar «${workspace.name}»'),
-        content: const Text(
-          'Se quita de morg.json. Los archivos no se borran.',
-        ),
+        title: Text(context.l10n.removeWorkspace(workspace.name)),
+        content: Text(context.l10n.removeWorkspaceBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Quitar'),
+            child: Text(context.l10n.remove),
           ),
         ],
       ),
@@ -214,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Morg'),
         actions: [
           IconButton(
-            tooltip: 'Ajustes',
+            tooltip: context.l10n.settings,
             onPressed: () => _push(const SettingsScreen()),
             icon: const Icon(Icons.settings),
           ),
@@ -228,18 +232,16 @@ class _HomeScreenState extends State<HomeScreen> {
               margin: const EdgeInsets.all(12),
               child: ListTile(
                 leading: const Icon(Icons.folder_off),
-                title: const Text('Acceso a archivos'),
-                subtitle: const Text(
-                  'Necesario para workspaces locales; los de la nube no lo requieren.',
-                ),
+                title: Text(context.l10n.fileAccess),
+                subtitle: Text(context.l10n.fileAccessBody),
                 trailing: FilledButton(
                   onPressed: () => _checkStorage(request: true),
-                  child: const Text('Conceder'),
+                  child: Text(context.l10n.grant),
                 ),
               ),
             ),
           if (workspaces != null) ...[
-            const ListTile(dense: true, title: Text('Workspaces')),
+            ListTile(dense: true, title: Text(context.l10n.workspaces)),
             for (final workspace in workspaces.all.values)
               ListTile(
                 leading: Icon(switch (workspace.store) {
@@ -251,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: Text(workspace.name),
                 subtitle: Text(
                   _isAndroid && _isMissing(workspace)
-                      ? 'No está en este teléfono · toca para elegir su carpeta'
+                      ? context.l10n.workspaceMissing
                       : workspace.store.location,
                 ),
                 enabled: _isAndroid || !_isMissing(workspace),
@@ -261,21 +263,23 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_isAndroid)
               ListTile(
                 leading: const Icon(Icons.create_new_folder),
-                title: const Text('Añadir carpeta…'),
-                subtitle: const Text('Syncthing, Nextcloud, OneDrive, etc.'),
+                title: Text(context.l10n.addFolder),
+                subtitle: Text(context.l10n.addFolderSubtitle),
                 onTap: _addWorkspace,
               ),
             const Divider(),
           ],
           ListTile(
             leading: const Icon(Icons.file_open),
-            title: const Text('Abrir archivo…'),
-            subtitle: Text(kIsWeb ? 'Solo lectura' : 'También desde la nube'),
+            title: Text(context.l10n.openFile),
+            subtitle: Text(
+              kIsWeb ? context.l10n.readOnly : context.l10n.alsoFromCloud,
+            ),
             onTap: _openFile,
           ),
           ListTile(
             leading: const Icon(Icons.menu_book),
-            title: const Text('Guía de Norg'),
+            title: Text(context.l10n.norgGuide),
             onTap: _openGuide,
           ),
         ],

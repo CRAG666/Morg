@@ -7,6 +7,7 @@ import 'settings.dart';
 import 'theme_toggle.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
+import 'l10n/l10n.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
@@ -91,10 +92,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   Future<void> _createNote() async {
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => const PromptDialog(
-        title: 'Nueva nota',
-        hint: 'nombre o carpeta/nombre',
-        confirm: 'Crear',
+      builder: (_) => PromptDialog(
+        title: context.l10n.newNote,
+        hint: context.l10n.newNoteHint,
+        confirm: context.l10n.create,
       ),
     );
     final trimmed = name?.trim() ?? '';
@@ -115,14 +116,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Índice',
+            tooltip: context.l10n.index,
             onPressed: () =>
                 _openNote(p.posix.join(widget.directory, config.indexFile)),
             icon: const Icon(Icons.home_outlined),
           ),
           if (_isRoot)
             IconButton(
-              tooltip: 'Diario de hoy',
+              tooltip: context.l10n.journalToday,
               onPressed: _openJournalToday,
               icon: const Icon(Icons.today),
             ),
@@ -130,7 +131,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Nueva nota',
+        tooltip: context.l10n.newNote,
         onPressed: _createNote,
         child: const Icon(Icons.note_add),
       ),
@@ -140,7 +141,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           AsyncSnapshot(:final error?) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('No se pudo leer ${_store.location}:\n$error'),
+              child: Text(
+                context.l10n.couldNotReadAt(_store.location, '$error'),
+              ),
             ),
           ),
           AsyncSnapshot(data: final entries?) => RefreshIndicator(
@@ -156,7 +159,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                       _ => Icons.description_outlined,
                     }),
                     subtitle: entry.name.contains('.sync-conflict-')
-                        ? const Text('Conflicto de Syncthing')
+                        ? Text(context.l10n.syncConflict)
                         : null,
                     title: Text(
                       entry.isDirectory
