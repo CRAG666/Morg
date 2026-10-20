@@ -10,6 +10,19 @@ final _linkLocation = RegExp(r'^(\*{1,6}|#|\$|\^|\?|/|@|=)\s+(.+)$');
 
 bool isContentUri(String path) => path.startsWith('content://');
 
+String? localPathForTree(String treeUri) {
+  final uri = Uri.parse(treeUri);
+  final segments = uri.pathSegments;
+  if (uri.authority != 'com.android.externalstorage.documents' ||
+      segments.length < 2 ||
+      segments.first != 'tree') {
+    return null;
+  }
+  final [volume, ...path] = segments[1].split(':');
+  final root = volume == 'primary' ? '/storage/emulated/0' : '/storage/$volume';
+  return p.join(root, path.join(':'));
+}
+
 class Workspace {
   const Workspace(this.name, this.store);
 

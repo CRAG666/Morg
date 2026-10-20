@@ -1,7 +1,7 @@
 name: morg
 description: "Visor de documentos Norg."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.1+2
 
 environment:
   sdk: ^3.13.5

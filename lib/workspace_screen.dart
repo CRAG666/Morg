@@ -149,11 +149,15 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
               children: [
                 for (final entry in entries)
                   ListTile(
-                    leading: Icon(
-                      entry.isDirectory
-                          ? Icons.folder
-                          : Icons.description_outlined,
-                    ),
+                    leading: Icon(switch (entry) {
+                      NoteEntry(isDirectory: true) => Icons.folder,
+                      _ when entry.name.contains('.sync-conflict-') =>
+                        Icons.warning_amber,
+                      _ => Icons.description_outlined,
+                    }),
+                    subtitle: entry.name.contains('.sync-conflict-')
+                        ? const Text('Conflicto de Syncthing')
+                        : null,
                     title: Text(
                       entry.isDirectory
                           ? entry.name

@@ -118,46 +118,61 @@ class _HomeScreenState extends State<HomeScreen> {
     _push(DocumentScreen.source(source, name: 'guia'));
   }
 
-  Future<String?> _pickCloudFolder({String? initialUri}) async {
+  Future<String?> _pickFolder({String? initialUri}) async {
     final folder = await _saf.pickDirectory(
       initialUri: initialUri,
       writePermission: true,
       persistablePermission: true,
     );
-    return folder?.uri;
+    if (folder == null) return null;
+    final local = _storageGranted ? localPathForTree(folder.uri) : null;
+    return local ?? folder.uri;
   }
 
-  Future<void> _addCloudWorkspace() async {
+  Future<void> _addWorkspace() async {
     final controller = MorgSettingsScope.controllerOf(context);
-    final uri = await _pickCloudFolder();
-    if (uri == null || !mounted) return;
+    final location = await _pickFolder();
+    if (location == null || !mounted) return;
     final name = await showDialog<String>(
       context: context,
       builder: (_) => PromptDialog(
         title: 'Nombre del workspace',
-        hint: 'p. ej. notas',
+        hint: 'el mismo que en Neovim, p. ej. phd',
         confirm: 'Añadir',
-        initial: SafStore(uri).location.split(RegExp('[:/]')).last,
+        initial: Uri.decodeComponent(location).split(RegExp('[:/]')).last,
       ),
     );
     final trimmed = name?.trim() ?? '';
-    if (trimmed.isNotEmpty) await controller.setWorkspace(trimmed, uri);
+    if (trimmed.isNotEmpty) await controller.setWorkspace(trimmed, location);
   }
+
+  bool _isMissing(Workspace workspace) => switch (workspace.store) {
+    LocalStore(:final root) => !root.existsSync(),
+    _ => false,
+  };
 
   Future<void> _openWorkspace(Workspace workspace) async {
     final controller = MorgSettingsScope.controllerOf(context);
-    if (workspace.store case SafStore(:final treeUri)
-        when !await _saf.hasPersistedPermission(treeUri, checkWrite: true)) {
-      final uri = await _pickCloudFolder(initialUri: treeUri);
-      if (uri == null) return;
-      await controller.setWorkspace(workspace.name, uri);
-      if (!mounted) return;
-      _push(
-        WorkspaceScreen(workspace: Workspace(workspace.name, SafStore(uri))),
+    final store = workspace.store;
+    final lostAccess = switch (store) {
+      SafStore(:final treeUri) => !await _saf.hasPersistedPermission(
+        treeUri,
+        checkWrite: true,
+      ),
+      _ => _isMissing(workspace),
+    };
+    var target = workspace;
+    if (lostAccess) {
+      final location = await _pickFolder(
+        initialUri: store is SafStore ? store.treeUri : null,
       );
-      return;
+      if (location == null) return;
+      await controller.setWorkspace(workspace.name, location);
+      target = Workspaces({
+        workspace.name: location,
+      }, home: userHome()).all[workspace.name]!;
     }
-    if (mounted) _push(WorkspaceScreen(workspace: workspace));
+    if (mounted) _push(WorkspaceScreen(workspace: target));
   }
 
   Future<void> _removeWorkspace(Workspace workspace) async {
@@ -234,21 +249,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   _ => Icons.folder,
                 }),
                 title: Text(workspace.name),
-                subtitle: Text(workspace.store.location),
-                enabled: switch (workspace.store) {
-                  LocalStore(:final root) =>
-                    _storageGranted && root.existsSync(),
-                  _ => true,
-                },
+                subtitle: Text(
+                  _isAndroid && _isMissing(workspace)
+                      ? 'No está en este teléfono · toca para elegir su carpeta'
+                      : workspace.store.location,
+                ),
+                enabled: _isAndroid || !_isMissing(workspace),
                 onTap: () => _openWorkspace(workspace),
                 onLongPress: () => _removeWorkspace(workspace),
               ),
             if (_isAndroid)
               ListTile(
-                leading: const Icon(Icons.add_to_drive),
-                title: const Text('Añadir carpeta de la nube…'),
-                subtitle: const Text('Nextcloud, OneDrive, Syncthing, etc.'),
-                onTap: _addCloudWorkspace,
+                leading: const Icon(Icons.create_new_folder),
+                title: const Text('Añadir carpeta…'),
+                subtitle: const Text('Syncthing, Nextcloud, OneDrive, etc.'),
+                onTap: _addWorkspace,
               ),
             const Divider(),
           ],
