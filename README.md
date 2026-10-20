@@ -43,7 +43,7 @@
   like `:Neorg workspace`.
 - **Blazing fast**: a linear-time parser (~65 MiB/s) and a virtualized document view that only builds what is
   on screen, no matter how long the note is.
-- English and Spanish interface.
+- English and Spanish interface, chosen in **Settings → Language** (follows the system by default).
 
 ## Install
 
@@ -56,7 +56,7 @@ tap **Add workspace** and choose the folder. Cloud folders work without that per
 
 ## Configuration
 
-Everything can be changed in **Settings** (theme, colorscheme, concealer icons, author, index file, default
+Everything can be changed in **Settings** (language, theme, colorscheme, concealer icons, author, index file, default
 workspace and journal options). Those screens edit `morg.json`, which you can also edit directly in
 **Settings → Edit configuration** or replace with **Import configuration** (for example from your synced notes).
 Invalid configurations are rejected before they are saved.
@@ -65,6 +65,7 @@ Invalid configurations are rejected before they are saved.
 {
   "theme": "eyes",
   "theme_mode": "system",
+  "language": "system",
   "load": {
     "core.concealer": {
       "config": {
@@ -91,7 +92,8 @@ Invalid configurations are rejected before they are saved.
 ```
 
 - Keys and defaults follow neorg; anything you leave out uses neorg's default (`basic` icon preset).
-- `theme` and `theme_mode` (`system`, `light` or `dark`) are the only keys outside neorg's structure.
+- `theme`, `theme_mode` (`system`, `light`, `dark`) and `language` (`system`, `en`, `es`) are the only keys outside
+  neorg's structure.
 - On Android `~` is the shared storage root (`/storage/emulated/0`).
 - Use the **same workspace names as in Neovim** so links like `{:$notes/index:}` keep working.
 - If a workspace folder is missing on the phone, tap it to pick its location; the name is kept.

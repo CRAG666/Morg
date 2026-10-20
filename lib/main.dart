@@ -58,6 +58,7 @@ class MorgApp extends StatelessWidget {
       theme: _theme(settings.theme.light, Brightness.light),
       darkTheme: _theme(settings.theme.dark, Brightness.dark),
       themeMode: settings.config.themeMode,
+      locale: settings.config.locale,
       home: const HomeScreen(),
     );
   }

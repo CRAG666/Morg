@@ -1,6 +1,7 @@
 {
   "theme": "eyes",
   "theme_mode": "system",
+  "language": "system",
   "load": {
     "core.concealer": {
       "config": {

@@ -300,4 +300,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get defaultSetting => 'Por defecto';
+
+  @override
+  String get language => 'Idioma';
+
+  @override
+  String get systemLanguage => 'Sistema';
 }

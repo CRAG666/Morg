@@ -99,6 +99,15 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
+          _ChoiceSetting(
+            label: l10n.language,
+            path: const ['language'],
+            options: {
+              'system': l10n.systemLanguage,
+              'en': 'English',
+              'es': 'Español',
+            },
+          ),
           FutureBuilder(
             future: controller.store.themeNames(),
             builder: (context, snapshot) => _ChoiceSetting(

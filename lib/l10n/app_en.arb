@@ -185,5 +185,7 @@
   "journalTemplate": "Template file",
   "useTemplate": "Use the template",
   "advanced": "Advanced",
-  "defaultSetting": "Default"
+  "defaultSetting": "Default",
+  "language": "Language",
+  "systemLanguage": "System"
 }

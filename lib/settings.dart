@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Locale, ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'config/concealer_config.dart';
+import 'l10n/app_localizations.dart';
 import 'theme/norg_theme.dart';
 
 const defaultConfigAsset = 'assets/config/morg.json';
@@ -18,6 +19,7 @@ class MorgConfig {
     required this.source,
     required this.themeName,
     required this.themeMode,
+    required this.locale,
     required this.concealer,
     required this.workspaces,
     required this.defaultWorkspace,
@@ -71,6 +73,13 @@ class MorgConfig {
         'dark' => ThemeMode.dark,
         final other => throw FormatException('Unknown theme_mode: $other'),
       },
+      locale: switch (json['language']) {
+        null || 'system' => null,
+        final String code when supportedLanguages.contains(code) => Locale(
+          code,
+        ),
+        final other => throw FormatException('Unsupported language: $other'),
+      },
       concealer: ConcealerConfig.fromNeorg(concealer),
       workspaces: {
         for (final MapEntry(:key, :value) in workspaces.entries)
@@ -101,6 +110,7 @@ class MorgConfig {
   final String source;
   final String themeName;
   final ThemeMode themeMode;
+  final Locale? locale;
   final ConcealerConfig concealer;
   final Map<String, String> workspaces;
   final String? defaultWorkspace;
@@ -262,6 +272,10 @@ class MorgSettingsScope extends InheritedNotifier<SettingsController> {
 
   static MorgSettings of(BuildContext context) => controllerOf(context).value;
 }
+
+final supportedLanguages = {
+  for (final locale in AppLocalizations.supportedLocales) locale.languageCode,
+};
 
 const _dirman = ['load', 'core.dirman', 'config'];
 

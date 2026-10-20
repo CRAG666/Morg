@@ -85,5 +85,7 @@
   "journalTemplate": "Archivo de plantilla",
   "useTemplate": "Usar la plantilla",
   "advanced": "Avanzado",
-  "defaultSetting": "Por defecto"
+  "defaultSetting": "Por defecto",
+  "language": "Idioma",
+  "systemLanguage": "Sistema"
 }
