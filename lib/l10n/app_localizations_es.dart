@@ -306,4 +306,28 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get norgCheatsheet => 'Guía rápida de Neorg';
+
+  @override
+  String get todoUndone => 'Sin hacer';
+
+  @override
+  String get todoDone => 'Hecha';
+
+  @override
+  String get todoNeedsInput => 'Necesita más información';
+
+  @override
+  String get todoUrgent => 'Urgente';
+
+  @override
+  String get todoRecurring => 'Recurrente';
+
+  @override
+  String get todoPending => 'En curso';
+
+  @override
+  String get todoOnHold => 'En espera';
+
+  @override
+  String get todoCancelled => 'Cancelada';
 }

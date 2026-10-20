@@ -76,9 +76,9 @@ class _DocumentScreenState extends State<DocumentScreen> {
     }
   }
 
-  Future<void> _toggleTodo(int line) async {
+  Future<void> _editTodo(String Function(String source) edit) async {
     try {
-      await _write(cycleTodo(_source!, _blocks, line));
+      await _write(edit(_source!));
     } on FileSystemException catch (error) {
       _notify((l10n) => l10n.saveFailed('$error'));
     }
@@ -221,7 +221,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
           source: source,
           onEdit: editable ? _replaceLines : null,
           onLink: _openLink,
-          onTodoTap: editable ? _toggleTodo : null,
+          onTodoTap: editable
+              ? (line) => _editTodo((text) => cycleTodo(text, _blocks, line))
+              : null,
+          onTodoSet: editable
+              ? (line, status) =>
+                    _editTodo((text) => setTodo(text, _blocks, line, status))
+              : null,
           buildImage: _image,
           initialLocation: widget.initialLocation,
         ),

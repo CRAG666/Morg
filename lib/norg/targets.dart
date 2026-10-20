@@ -100,6 +100,7 @@ class DocumentTargets {
         case DocumentMeta() ||
             CodeBlock() ||
             MathBlock() ||
+            VerbatimTag() ||
             ImageBlock() ||
             InfirmTag() ||
             DelimiterLine():

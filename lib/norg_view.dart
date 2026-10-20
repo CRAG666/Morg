@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'config/concealer_config.dart';
 import 'highlight/languages.dart';
 import 'norg/ast.dart';
+import 'norg/parser.dart';
 import 'norg/targets.dart';
 import 'raw_highlight.dart';
 import 'settings.dart';
@@ -89,6 +90,7 @@ class NorgDocumentView extends StatefulWidget {
     this.onEdit,
     this.onLink,
     this.onTodoTap,
+    this.onTodoSet,
     this.buildImage,
     this.initialLocation,
   });
@@ -98,6 +100,7 @@ class NorgDocumentView extends StatefulWidget {
   final Future<void> Function(SourceRange range, String text)? onEdit;
   final ValueChanged<String>? onLink;
   final ValueChanged<int>? onTodoTap;
+  final void Function(int line, TodoStatus status)? onTodoSet;
   final Widget? Function(String path)? buildImage;
   final String? initialLocation;
 
@@ -227,36 +230,48 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
   Widget _row(_Row row) {
     final range = row.range;
     final revealed = _revealed == range.start && range.end > range.start;
+    final tags = row is _BlockRow ? row.block.tags : const <CarryoverTag>[];
     return _indented(
       revealed
           ? 0
           : row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0),
       Padding(
         padding: EdgeInsets.only(bottom: row is _ItemRow && !row.last ? 2 : 8),
-        child: revealed
-            ? SourceEditor(
-                key: ValueKey(range.start),
-                source: _sourceOf(range),
-                style: _base,
-                highlight: (text) => _rawSpans(text),
-                readOnly: widget.onEdit == null,
-                onDone: (text) => _commit(range, text),
-              )
-            : GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _revealed = range.start),
-                child: switch (row) {
-                  _HeadingRow(:final heading) => _headingTitle(heading),
-                  _ItemRow(:final item, :final ordinal) => _listItem(
-                    item,
-                    ordinal,
-                  ),
-                  _BlockRow(:final block) => _taggedBlock(block),
-                },
-              ),
+        child: _withTagLines(
+          tags,
+          revealed
+              ? SourceEditor(
+                  key: ValueKey(range.start),
+                  source: _sourceOf(range),
+                  style: _base,
+                  highlight: (text) => _rawSpans(text),
+                  readOnly: widget.onEdit == null,
+                  onDone: (text) => _commit(range, text),
+                )
+              : GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _revealed = range.start),
+                  child: switch (row) {
+                    _HeadingRow(:final heading) => _headingTitle(heading),
+                    _ItemRow(:final item, :final ordinal) => _listItem(
+                      item,
+                      ordinal,
+                    ),
+                    _BlockRow(:final block) => _taggedBlock(block),
+                  },
+                ),
+        ),
       ),
     );
   }
+
+  Widget _withTagLines(List<CarryoverTag> tags, Widget child) => tags.isEmpty
+      ? child
+      : _column([
+          for (final CarryoverTag(:marker, :name, :params) in tags)
+            Text.rich(_rawSpans('$marker$name $params'.trimRight())),
+          child,
+        ]);
 
   Widget _taggedBlock(Block block) {
     if (!block.tags.any((tag) => tag.name == 'comment')) {
@@ -324,6 +339,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       child: _math(tex, MathStyle.display, _base),
     ),
     ImageBlock() => _embeddedImage(block),
+    VerbatimTag() => _rawBlock(block),
     InfirmTag(:final name, :final params) => Text.rich(
       TextSpan(
         children: [
@@ -400,25 +416,74 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
+  TextStyle _todoStyle(TodoStatus? status) =>
+      _hl('@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}');
+
   List<InlineSpan> _taskSpans(TaskExtension task, int? line) {
     final status = task.status;
     final segments = [
       if (status != null) _icons.todoIcons[status]!,
       ...task.details,
     ];
-    final tappable = status != null && line != null && widget.onTodoTap != null;
+    final text = '(${segments.join('|')})';
+    final style = _todoStyle(status);
     return [
-      TextSpan(
-        text: '(${segments.join('|')})',
-        style: _hl(
-          '@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}',
-        ),
-        recognizer: tappable
-            ? _recognizer(('todo', line), () => widget.onTodoTap?.call(line))
-            : null,
-      ),
+      if (status != null && line != null && widget.onTodoTap != null)
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: GestureDetector(
+            onTap: () => widget.onTodoTap!(line),
+            onLongPressStart: (details) =>
+                _chooseTodo(line, status, details.globalPosition),
+            child: Text(text, style: style),
+          ),
+        )
+      else
+        TextSpan(text: text, style: style),
       const TextSpan(text: ' '),
     ];
+  }
+
+  Future<void> _chooseTodo(
+    int line,
+    TodoStatus current,
+    Offset position,
+  ) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    PopupMenuItem<TodoStatus> item(TodoStatus status) => PopupMenuItem(
+      value: status,
+      child: Row(
+        children: [
+          SizedBox(
+            width: _charWidth * 5,
+            child: Text(
+              '(${_icons.todoIcons[status]})',
+              style: _todoStyle(status),
+            ),
+          ),
+          Text(todoLabel(context.l10n, status)),
+        ],
+      ),
+    );
+    final chosen = await showMenu<TodoStatus>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      initialValue: current,
+      items: [
+        for (final group in _todoMenu) ...[
+          if (group != _todoMenu.first) const PopupMenuDivider(),
+          for (final status in group) item(status),
+        ],
+      ],
+    );
+    if (chosen != null && chosen != current) {
+      widget.onTodoSet?.call(line, chosen);
+    }
   }
 
   Widget _list(ListBlock list) => _column([
@@ -536,7 +601,7 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     try {
       bytes = base64Decode(image.data);
     } on FormatException {
-      return Text('@image ${image.format}', style: _hl('@neorg.error'));
+      return _rawBlock(image);
     }
     return Align(
       alignment: Alignment.centerLeft,
@@ -550,10 +615,14 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
+  Widget _rawBlock(Block block) => Text.rich(
+    _rawSpans(dedent(_lines.sublist(block.range.start, block.range.end))),
+  );
+
   TextSpan? _highlight(CodeBlock code) {
     final language = code.language;
     if (language == 'norg') {
-      return RawHighlighter(_theme, _base).highlight(code.code);
+      return RawHighlighter(_theme, _base, conceal: true).highlight(code.code);
     }
     if (language == null || codeHighlighter.getLanguage(language) == null) {
       return null;
@@ -845,3 +914,20 @@ Widget svgFromUrl(String url) => ConstrainedBox(
     si: ScalableImageSource.fromSvgHttpUrl(Uri.parse(url)),
   ),
 );
+
+const _todoMenu = [
+  [TodoStatus.undone, TodoStatus.done, TodoStatus.needsInput],
+  [TodoStatus.urgent, TodoStatus.recurring],
+  [TodoStatus.pending, TodoStatus.onHold, TodoStatus.cancelled],
+];
+
+String todoLabel(AppLocalizations l10n, TodoStatus status) => switch (status) {
+  TodoStatus.undone => l10n.todoUndone,
+  TodoStatus.done => l10n.todoDone,
+  TodoStatus.needsInput => l10n.todoNeedsInput,
+  TodoStatus.urgent => l10n.todoUrgent,
+  TodoStatus.recurring => l10n.todoRecurring,
+  TodoStatus.pending => l10n.todoPending,
+  TodoStatus.onHold => l10n.todoOnHold,
+  TodoStatus.cancelled => l10n.todoCancelled,
+};

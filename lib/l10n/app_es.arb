@@ -87,5 +87,13 @@
   "defaultSetting": "Por defecto",
   "language": "Idioma",
   "systemLanguage": "Sistema",
-  "norgCheatsheet": "Guía rápida de Neorg"
+  "norgCheatsheet": "Guía rápida de Neorg",
+  "todoUndone": "Sin hacer",
+  "todoDone": "Hecha",
+  "todoNeedsInput": "Necesita más información",
+  "todoUrgent": "Urgente",
+  "todoRecurring": "Recurrente",
+  "todoPending": "En curso",
+  "todoOnHold": "En espera",
+  "todoCancelled": "Cancelada"
 }

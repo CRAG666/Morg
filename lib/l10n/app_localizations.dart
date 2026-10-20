@@ -625,6 +625,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick Neorg guide'**
   String get norgCheatsheet;
+
+  /// No description provided for @todoUndone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get todoUndone;
+
+  /// No description provided for @todoDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get todoDone;
+
+  /// No description provided for @todoNeedsInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs further input'**
+  String get todoNeedsInput;
+
+  /// No description provided for @todoUrgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Urgent'**
+  String get todoUrgent;
+
+  /// No description provided for @todoRecurring.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get todoRecurring;
+
+  /// No description provided for @todoPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get todoPending;
+
+  /// No description provided for @todoOnHold.
+  ///
+  /// In en, this message translates to:
+  /// **'On hold'**
+  String get todoOnHold;
+
+  /// No description provided for @todoCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get todoCancelled;
 }
 
 class _AppLocalizationsDelegate

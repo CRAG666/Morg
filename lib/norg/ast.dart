@@ -32,7 +32,8 @@ class TaskExtension {
 }
 
 class CarryoverTag {
-  const CarryoverTag(this.name, this.params);
+  const CarryoverTag(this.marker, this.name, this.params);
+  final String marker;
   final String name;
   final String params;
 }
@@ -170,6 +171,8 @@ class Footnote extends Block {
   final bool ranged;
   final TaskExtension? task;
 }
+
+class VerbatimTag extends Block {}
 
 class MathBlock extends Block {
   MathBlock(this.tex);

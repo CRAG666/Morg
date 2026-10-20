@@ -187,5 +187,13 @@
   "defaultSetting": "Default",
   "language": "Language",
   "systemLanguage": "System",
-  "norgCheatsheet": "Quick Neorg guide"
+  "norgCheatsheet": "Quick Neorg guide",
+  "todoUndone": "Undone",
+  "todoDone": "Done",
+  "todoNeedsInput": "Needs further input",
+  "todoUrgent": "Urgent",
+  "todoRecurring": "Recurring",
+  "todoPending": "Pending",
+  "todoOnHold": "On hold",
+  "todoCancelled": "Cancelled"
 }

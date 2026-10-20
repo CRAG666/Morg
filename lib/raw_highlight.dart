@@ -43,10 +43,11 @@ String linkGroup(String target) {
 typedef _Region = (int start, int end, List<InlineSpan> Function() build);
 
 class RawHighlighter {
-  const RawHighlighter(this.theme, this.base);
+  const RawHighlighter(this.theme, this.base, {this.conceal = false});
 
   final NorgTheme theme;
   final TextStyle base;
+  final bool conceal;
 
   TextStyle _hl(String group, [TextStyle? on]) =>
       theme[group].apply(on ?? base);
@@ -61,8 +62,9 @@ class RawHighlighter {
         children.add(TextSpan(text: line));
         continue;
       }
-      verbatim = trimmed.startsWith('@') && trimmed != '@end';
-      children.addAll(_line(line));
+      final tagLine = trimmed.startsWith('@');
+      verbatim = tagLine && trimmed != '@end';
+      if (!(conceal && tagLine)) children.addAll(_line(line));
     }
     return TextSpan(style: base, children: children);
   }
@@ -216,16 +218,17 @@ class RawHighlighter {
         final targetStart = raw.indexOf('{', node.start) + 1;
         final targetEnd = targetStart + target.length;
         return _container(raw, node, _hl('@neorg.links.location.delimiter'), [
-          (
-            targetStart,
-            targetEnd,
-            () => [
-              TextSpan(
-                text: raw.substring(targetStart, targetEnd),
-                style: _hl(linkGroup(target), style),
-              ),
-            ],
-          ),
+          if (!conceal || description.isEmpty)
+            (
+              targetStart,
+              targetEnd,
+              () => [
+                TextSpan(
+                  text: raw.substring(targetStart, targetEnd),
+                  style: _hl(linkGroup(target), style),
+                ),
+              ],
+            ),
           if (description.isNotEmpty)
             inner(description, _hl('@neorg.links.description', style)),
         ]);
@@ -241,7 +244,7 @@ class RawHighlighter {
     final spans = <InlineSpan>[];
     var cursor = node.start;
     for (final (start, end, build) in regions..sort((a, b) => a.$1 - b.$1)) {
-      if (start > cursor) {
+      if (start > cursor && !conceal) {
         spans.add(
           TextSpan(text: raw.substring(cursor, start), style: delimiter),
         );
@@ -249,7 +252,7 @@ class RawHighlighter {
       spans.addAll(build());
       cursor = end;
     }
-    if (cursor < node.end) {
+    if (cursor < node.end && !conceal) {
       spans.add(
         TextSpan(text: raw.substring(cursor, node.end), style: delimiter),
       );

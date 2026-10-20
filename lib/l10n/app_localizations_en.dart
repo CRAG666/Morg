@@ -305,4 +305,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get norgCheatsheet => 'Quick Neorg guide';
+
+  @override
+  String get todoUndone => 'Undone';
+
+  @override
+  String get todoDone => 'Done';
+
+  @override
+  String get todoNeedsInput => 'Needs further input';
+
+  @override
+  String get todoUrgent => 'Urgent';
+
+  @override
+  String get todoRecurring => 'Recurring';
+
+  @override
+  String get todoPending => 'Pending';
+
+  @override
+  String get todoOnHold => 'On hold';
+
+  @override
+  String get todoCancelled => 'Cancelled';
 }

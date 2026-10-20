@@ -40,7 +40,7 @@
 - **Edit in place, like `conceallevel=2`**: tap any element and only that element shows its raw Norg source,
   still highlighted (delimiters dimmed like Neovim's insert mode), ready to edit; tap elsewhere to save.
   Tap a heading icon to fold it.
-- **Editing**: tap a TODO to cycle it (neorg order, children and parents are updated), edit the whole file,
+- **Editing**: tap a TODO to cycle it or long-press it to pick any of the eight states (neorg order, children and parents are updated), edit the whole file,
   `updated:` is refreshed on save like metagen, create notes and today's journal entry.
 - **Workspaces from the UI**: add, rename, relocate or remove them; opening a workspace opens its `index.norg`,
   like `:Neorg workspace`.

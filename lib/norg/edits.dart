@@ -18,15 +18,30 @@ final _detachedPrefix = RegExp(
 );
 final _updatedField = RegExp(r'^(\s*updated\s*:\s*).*$');
 
-String cycleTodo(String source, List<Block> blocks, int line) {
+String cycleTodo(String source, List<Block> blocks, int line) =>
+    _updateTodo(source, blocks, line, null);
+
+String setTodo(
+  String source,
+  List<Block> blocks,
+  int line,
+  TodoStatus status,
+) => _updateTodo(source, blocks, line, status);
+
+String _updateTodo(
+  String source,
+  List<Block> blocks,
+  int line,
+  TodoStatus? chosen,
+) {
   final lines = source.split('\n');
   switch (_locate(blocks, line)) {
     case Heading(:final status) ||
         Definition(task: TaskExtension(:final status)?) ||
         Footnote(task: TaskExtension(:final status)?):
-      lines[line] = _withStatus(lines[line], _next(_order, status));
+      lines[line] = _withStatus(lines[line], chosen ?? _next(_order, status));
     case (List<ListItem> items, int index):
-      _cycleListItem(lines, items, index);
+      _updateListItem(lines, items, index, chosen);
     case _:
       throw ArgumentError.value(line, 'line', 'No TODO item on this line');
   }
@@ -60,7 +75,12 @@ TodoStatus _next(List<TodoStatus> order, TodoStatus? current) {
   return index < 0 ? order.first : order[(index + 1) % order.length];
 }
 
-void _cycleListItem(List<String> lines, List<ListItem> items, int index) {
+void _updateListItem(
+  List<String> lines,
+  List<ListItem> items,
+  int index,
+  TodoStatus? chosen,
+) {
   final statuses = [for (final item in items) item.status];
 
   Iterable<int> children(int parent) sync* {
@@ -80,10 +100,9 @@ void _cycleListItem(List<String> lines, List<ListItem> items, int index) {
 
   final hasTodoChildren = children(index)
       .any((child) => statuses[child] != null);
-  final next = _next(
-    hasTodoChildren ? _orderWithChildren : _order,
-    statuses[index],
-  );
+  final next =
+      chosen ??
+      _next(hasTodoChildren ? _orderWithChildren : _order, statuses[index]);
 
   void makeAll(int item) {
     if (statuses[item] == next) return;

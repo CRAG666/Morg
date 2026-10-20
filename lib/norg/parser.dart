@@ -111,7 +111,7 @@ class _BlockParser {
         if (match[1] == '.') {
           add(InfirmTag(match[2]!, match[3]!));
         } else {
-          pendingTags.add(CarryoverTag(match[2]!, match[3]!));
+          pendingTags.add(CarryoverTag(match[1]!, match[2]!, match[3]!));
         }
         continue;
       }
@@ -151,22 +151,22 @@ class _BlockParser {
     final body = _collectRanged(prefix);
     return switch ((prefix, name)) {
       ('@', 'document.meta') => DocumentMeta(_metaFields(body)),
-      ('@', 'math') => MathBlock(_dedent(body)),
+      ('@', 'math') => MathBlock(dedent(body)),
       ('@', 'image') => ImageBlock(
         params.split(RegExp(r'\s+')).first,
         body.join().replaceAll(RegExp(r'\s'), ''),
       ),
       ('@', 'code') => CodeBlock(
         params.split(RegExp(r'\s+')).first.nullIfEmpty,
-        _dedent(body),
+        dedent(body),
       ),
       ('@', 'table') => TableBlock(_tableRows(body)),
-      ('@', _) => CodeBlock(null, _dedent(body)),
+      ('@', _) => VerbatimTag(),
       ('|', 'comment') => RangedBlock(name, params, [
-        Paragraph([VerbatimInline(VerbatimKind.comment, _dedent(body))]),
+        Paragraph([VerbatimInline(VerbatimKind.comment, dedent(body))]),
       ]),
       ('=', _) => null,
-      ('|', 'example') => CodeBlock('norg', _dedent(body)),
+      ('|', 'example') => CodeBlock('norg', dedent(body)),
       ('|', _) => RangedBlock(
         name,
         params,
@@ -339,7 +339,7 @@ Map<String, String> _metaFields(List<String> body) {
   return fields;
 }
 
-String _dedent(List<String> body) {
+String dedent(List<String> body) {
   final indents = body
       .where((line) => line.trim().isNotEmpty)
       .map((line) => line.length - line.trimLeft().length);
