@@ -181,7 +181,7 @@ class _FindScreenState extends State<FindScreen> {
     final results = <_Match>[];
     for (final note in notes) {
       if (matches(note.title)) results.add(_Match(note, 0, note.title));
-      for (final (line, text) in note.source.split('\n').indexed) {
+      for (final (line, text) in note.lines.indexed) {
         if (results.length >= _maxMatches) break;
         if (text.trim().isNotEmpty && matches(text)) {
           results.add(_Match(note, line, text.trim()));
@@ -224,7 +224,7 @@ class _FindScreenState extends State<FindScreen> {
   Iterable<_NoteTask> _tasks(List<IndexedNote> notes) sync* {
     final matches = _matcher(_query.text);
     for (final note in notes) {
-      for (final task in tasksOf(note.blocks)) {
+      for (final task in note.tasks) {
         if (matches(task.title)) yield _NoteTask(note, task);
       }
     }
@@ -270,19 +270,18 @@ class _FindScreenState extends State<FindScreen> {
   Widget _taskList(List<IndexedNote> notes) {
     final year = DateTime.now().year;
     final far = DateTime(9999);
-    final tasks =
-        _tasks(notes)
-            .where((entry) => _statuses.contains(entry.task.status))
-            .toList()
-          ..sort((a, b) {
-            final byStatus =
-                _statusOrder.indexOf(a.task.status) -
-                _statusOrder.indexOf(b.task.status);
-            if (byStatus != 0) return byStatus;
-            return (a.task.date('<', defaultYear: year) ?? far).compareTo(
-              b.task.date('<', defaultYear: year) ?? far,
-            );
-          });
+    final due = {
+      for (final entry in _tasks(notes))
+        if (_statuses.contains(entry.task.status))
+          entry: entry.task.date('<', defaultYear: year) ?? far,
+    };
+    final tasks = due.keys.toList()
+      ..sort((a, b) {
+        final byStatus =
+            _statusOrder.indexOf(a.task.status) -
+            _statusOrder.indexOf(b.task.status);
+        return byStatus != 0 ? byStatus : due[a]!.compareTo(due[b]!);
+      });
     return Column(
       children: [
         SizedBox(

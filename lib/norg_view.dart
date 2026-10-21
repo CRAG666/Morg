@@ -184,6 +184,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
           rows.add(_HeadingRow(block, depth));
           if (!_collapsed.contains(line)) _flatten(children, depth + 1, rows);
         case ListBlock(:final items):
+          final progress = progressOfItems(items);
           for (final (index, ordinal) in _ordinals(items).indexed) {
             rows.add(
               _ItemRow(
@@ -191,7 +192,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
                 ordinal,
                 depth,
                 last: index == items.length - 1,
-                progress: progressOfItem(items, index),
+                progress: progress[index],
               ),
             );
           }
@@ -725,20 +726,19 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     ];
   }
 
-  Widget _list(ListBlock list) => _column([
-    for (final (index, ordinal) in _ordinals(list.items).indexed)
-      _indented(
-        list.items[index].level - 1.0,
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: _listItem(
-            list.items[index],
-            ordinal,
-            progressOfItem(list.items, index),
+  Widget _list(ListBlock list) {
+    final progress = progressOfItems(list.items);
+    return _column([
+      for (final (index, ordinal) in _ordinals(list.items).indexed)
+        _indented(
+          list.items[index].level - 1.0,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: _listItem(list.items[index], ordinal, progress[index]),
           ),
         ),
-      ),
-  ]);
+    ]);
+  }
 
   String _itemIcon(ListItem item, int ordinal) =>
       item.kind == NestableKind.ordered

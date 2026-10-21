@@ -63,6 +63,7 @@ class DocumentScreen extends StatefulWidget {
 class _DocumentScreenState extends State<DocumentScreen> {
   String? _source;
   List<Block> _blocks = const [];
+  DocumentTargets _targets = DocumentTargets(const []);
   Object? _error;
   final _undo = <String>[];
   final _redo = <String>[];
@@ -95,7 +96,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final prefix = match?[1] ?? '';
     final needle = query.substring(match?.end ?? 0).toLowerCase();
     final candidates = [
-      if (!prefix.startsWith(':')) ...DocumentTargets(_blocks).locations,
+      if (!prefix.startsWith(':')) ..._targets.locations,
       if (prefix.isEmpty || prefix.startsWith(':'))
         for (final file in _files) ':\$/${p.posix.withoutExtension(file)}:',
     ];
@@ -115,6 +116,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
       setState(() {
         _source = source;
         _blocks = parseNorg(source);
+        _targets = DocumentTargets(_blocks);
         _error = null;
       });
     } on FileSystemException catch (error) {

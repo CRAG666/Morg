@@ -16,6 +16,10 @@ class IndexedNote {
   final String source;
   final List<Block> blocks;
 
+  late final List<String> lines = source.split('\n');
+
+  late final List<TaskEntry> tasks = tasksOf(blocks).toList();
+
   late final Map<String, String> meta =
       blocks.whereType<DocumentMeta>().firstOrNull?.fields ?? const {};
 

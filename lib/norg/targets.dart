@@ -30,7 +30,7 @@ class DocumentTargets {
     _blocks(blocks);
   }
 
-  final _headings = <(int level, String title, int line)>[];
+  final _headings = <(int level, String title), int>{};
   final _definitions = <String, int>{};
   final _footnotes = <String, int>{};
   final _generic = <String, int>{};
@@ -43,12 +43,7 @@ class DocumentTargets {
     final marker = match[1]!;
     final title = comparable(match[2]!);
     return switch (marker[0]) {
-      '*' =>
-        _headings
-            .where((heading) => heading.$1 == min(marker.length, 6))
-            .where((heading) => heading.$2 == title)
-            .firstOrNull
-            ?.$3,
+      '*' => _headings[(min(marker.length, 6), title)],
       r'$' => _definitions[title],
       '^' => _footnotes[title],
       _ => _generic[title],
@@ -70,7 +65,7 @@ class DocumentTargets {
       switch (block) {
         case Heading(:final level, :final title, :final children):
           final text = plainText(title);
-          _headings.add((level, comparable(text), block.line));
+          _headings.putIfAbsent((level, comparable(text)), () => block.line);
           locations.add('${'*' * level} $text');
           _remember(_generic, text, block.line);
           _inlines(title, block.line);

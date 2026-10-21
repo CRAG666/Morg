@@ -190,17 +190,26 @@ String? deleteElement(String source, List<Block> blocks, int line) {
 (int done, int total)? progressOfHeading(Heading heading) =>
     _progress(heading.children.whereType<Heading>().map((child) => child.task));
 
-(int done, int total)? progressOfItem(List<ListItem> items, int index) {
-  final level = items[index].level;
-  final children = <TaskExtension?>[];
-  for (
-    var child = index + 1;
-    child < items.length && items[child].level > level;
-    child++
-  ) {
-    if (items[child].level == level + 1) children.add(items[child].task);
+List<(int done, int total)?> progressOfItems(List<ListItem> items) {
+  final done = List.filled(items.length, 0);
+  final total = List.filled(items.length, 0);
+  final open = <int>[];
+  for (final (index, item) in items.indexed) {
+    while (open.isNotEmpty && items[open.last].level >= item.level) {
+      open.removeLast();
+    }
+    if (open.isNotEmpty &&
+        items[open.last].level == item.level - 1 &&
+        _counted.contains(item.status)) {
+      total[open.last]++;
+      if (item.status == TodoStatus.done) done[open.last]++;
+    }
+    open.add(index);
   }
-  return _progress(children);
+  return [
+    for (var index = 0; index < items.length; index++)
+      total[index] == 0 ? null : (done[index], total[index]),
+  ];
 }
 
 const _counted = {
