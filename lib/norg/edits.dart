@@ -2,7 +2,7 @@ import 'ast.dart';
 import 'dates.dart';
 import 'parser.dart';
 
-const _statusChars = {
+const statusChars = {
   TodoStatus.undone: ' ',
   TodoStatus.done: 'x',
   TodoStatus.pending: '-',
@@ -155,7 +155,7 @@ TodoStatus? _parentStatus(List<TodoStatus> children) {
 
 String _withStatus(String line, TodoStatus status) =>
     _withSegments(line, (segments) {
-      final char = _statusChars[status]!;
+      final char = statusChars[status]!;
       final index = segments.indexWhere(isStatusSegment);
       return index < 0 ? [char, ...segments] : (segments..[index] = char);
     });

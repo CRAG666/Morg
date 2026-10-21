@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:jovial_svg/jovial_svg.dart';
 import 'package:re_highlight/re_highlight.dart';
@@ -119,6 +120,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
   final _highlighted = <(CodeBlock, Brightness), TextSpan?>{};
   final _scrollController = ScrollController();
   final _listController = ListController();
+  final _selectionFocus = FocusNode(debugLabel: 'document selection');
   List<_Row>? _rows;
 
   late ConcealerConfig _icons;
@@ -156,6 +158,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     }
     _scrollController.dispose();
     _listController.dispose();
+    _selectionFocus.dispose();
     super.dispose();
   }
 
@@ -241,6 +244,15 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     painter.dispose();
 
     final rows = _visibleRows;
+    _selectionFocus.canRequestFocus = _revealed == null;
+    final list = SuperListView.builder(
+      controller: _scrollController,
+      listController: _listController,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
+      itemCount: rows.length,
+      itemBuilder: (context, index) =>
+          _SelectionGroup(copied: _asLine, child: _row(rows[index])),
+    );
     final narrowed = _narrowedHeading;
     if (narrowed == null) _narrowed = null;
     return PopScope(
@@ -270,13 +282,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
               ),
             ),
           Expanded(
-            child: SuperListView.builder(
-              controller: _scrollController,
-              listController: _listController,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
-              itemCount: rows.length,
-              itemBuilder: (context, index) => _row(rows[index]),
-            ),
+            child: SelectionArea(focusNode: _selectionFocus, child: list),
           ),
         ],
       ),
@@ -299,25 +305,22 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       ),
       _ => (null, null),
     };
-    if (_revealed != null) return content;
-    if (prefix == null || onLongPress == null) {
-      return SelectionArea(child: content);
+    if (_revealed != null || prefix == null || onLongPress == null) {
+      return content;
     }
     final zoneEnd = (indent + prefix.length + 1) * _charWidth;
-    return SelectionArea(
-      child: RawGestureDetector(
-        behavior: HitTestBehavior.translucent,
-        gestures: {
-          _PrefixLongPress:
-              GestureRecognizerFactoryWithHandlers<_PrefixLongPress>(
-                () => _PrefixLongPress(zoneEnd),
-                (recognizer) => recognizer
-                  ..zoneEnd = zoneEnd
-                  ..onLongPressStart = (_) => onLongPress(),
-              ),
-        },
-        child: content,
-      ),
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: {
+        _PrefixLongPress:
+            GestureRecognizerFactoryWithHandlers<_PrefixLongPress>(
+              () => _PrefixLongPress(zoneEnd),
+              (recognizer) => recognizer
+                ..zoneEnd = zoneEnd
+                ..onLongPressStart = (_) => onLongPress(),
+            ),
+      },
+      child: content,
     );
   }
 
@@ -547,9 +550,11 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
               onTap: heading.children.isEmpty ? null : () => _toggle(line),
-              child: Text(
-                '${iconForLevel(_icons.headingIcons, level)} ',
-                style: _hl('@neorg.headings.$level.prefix'),
+              child: SelectionContainer.disabled(
+                child: Text(
+                  '${iconForLevel(_icons.headingIcons, level)} ',
+                  style: _hl('@neorg.headings.$level.prefix'),
+                ),
               ),
             ),
           ),
@@ -702,7 +707,11 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
               );
               if (edit != null) onTransform(edit);
             },
-            child: Text(text, style: style),
+            child: _SelectionGroup(
+              copied: (_) =>
+                  '(${[statusChars[status], ...task.details].join('|')})',
+              child: Text(text, style: style),
+            ),
           ),
         )
       else
@@ -738,14 +747,18 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${_itemIcon(item, ordinal)} ',
-          style: _hl(
-            item.kind == NestableKind.ordered
-                ? '@neorg.lists.ordered.prefix'
-                : '@neorg.lists.unordered.prefix',
+        if (item.kind == NestableKind.ordered)
+          Text(
+            '${_itemIcon(item, ordinal)} ',
+            style: _hl('@neorg.lists.ordered.prefix'),
+          )
+        else
+          SelectionContainer.disabled(
+            child: Text(
+              '${_itemIcon(item, ordinal)} ',
+              style: _hl('@neorg.lists.unordered.prefix'),
+            ),
           ),
-        ),
         Expanded(
           child: Text.rich(
             TextSpan(
@@ -1204,4 +1217,44 @@ class _PrefixLongPress extends LongPressGestureRecognizer {
   @override
   bool isPointerAllowed(PointerDownEvent event) =>
       event.localPosition.dx <= zoneEnd && super.isPointerAllowed(event);
+}
+
+String _asLine(String text) => '$text\n';
+
+class _MappedSelectionDelegate extends StaticSelectionContainerDelegate {
+  _MappedSelectionDelegate(this.copied);
+
+  String Function(String text) copied;
+
+  @override
+  SelectedContent? getSelectedContent() => switch (super.getSelectedContent()) {
+    final content? => SelectedContent(plainText: copied(content.plainText)),
+    null => null,
+  };
+}
+
+class _SelectionGroup extends StatefulWidget {
+  const _SelectionGroup({required this.copied, required this.child});
+
+  final String Function(String text) copied;
+  final Widget child;
+
+  @override
+  State<_SelectionGroup> createState() => _SelectionGroupState();
+}
+
+class _SelectionGroupState extends State<_SelectionGroup> {
+  late final _delegate = _MappedSelectionDelegate(widget.copied);
+
+  @override
+  void dispose() {
+    _delegate.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _delegate.copied = widget.copied;
+    return SelectionContainer(delegate: _delegate, child: widget.child);
+  }
 }

@@ -88,7 +88,7 @@ from the home screen, and nothing you change there is saved.
 | Tap a heading icon | Folds or unfolds the heading (a folded heading ends with `…`) |
 | Tap **Outline** in the top bar | Lists every heading; tap one to jump to it |
 | Long-press a heading icon → **Focus** | Shows only that heading and its children; the × in the bar or *back* shows everything again |
-| Long-press any text | Selects it, to copy |
+| Long-press any text | Selects it; drag the handles to extend the selection across elements. Copied text has one element per line, without the decorative icons, and task states as Norg characters (`(x) done`) |
 
 ### Editing
 
