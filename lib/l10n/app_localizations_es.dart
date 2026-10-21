@@ -465,4 +465,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get uncategorized => 'Sin categoría';
+
+  @override
+  String get formatOnEdit => 'Formatear las líneas editadas';
+
+  @override
+  String get dedentExcess => 'Quitar sangría de más';
+
+  @override
+  String get formatFile => 'Formatear archivo';
+
+  @override
+  String get formatted => 'Formateado';
 }

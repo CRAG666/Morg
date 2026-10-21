@@ -11,6 +11,7 @@ import 'editor_screen.dart';
 import 'find_screen.dart';
 import 'norg/ast.dart';
 import 'norg/edits.dart';
+import 'norg/indent.dart';
 import 'norg/markdown.dart';
 import 'norg/parser.dart';
 import 'norg/targets.dart';
@@ -34,6 +35,7 @@ enum _DocumentAction {
   previousDay,
   nextDay,
   exportMarkdown,
+  format,
 }
 
 class DocumentScreen extends StatefulWidget {
@@ -111,9 +113,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
     }
   }
 
-  Future<void> _write(String source, {bool record = true}) async {
+  Future<void> _write(String edited, {bool record = true}) async {
     final note = widget.note;
     final previous = _source;
+    final config = MorgSettingsScope.of(context).config;
+    final source = record && previous != null && config.formatOnEdit
+        ? reindentChanges(previous, edited, dedentExcess: config.dedentExcess)
+        : edited;
     await note.store.write(note.path, touchUpdated(source, DateTime.now()));
     if (record && previous != null) {
       _undo.add(previous);
@@ -323,6 +329,11 @@ class _DocumentScreenState extends State<DocumentScreen> {
         );
       case _DocumentAction.exportMarkdown:
         await _exportMarkdown();
+      case _DocumentAction.format:
+        await _transform(
+          (source) => reindent(source, dedentExcess: config.dedentExcess),
+          notice: context.l10n.formatted,
+        );
     }
   }
 
@@ -367,6 +378,12 @@ class _DocumentScreenState extends State<DocumentScreen> {
             itemBuilder: (context) => [
               for (final (action, icon, label, enabled) in [
                 (_DocumentAction.editFile, Icons.edit, l10n.edit, editable),
+                (
+                  _DocumentAction.format,
+                  Icons.format_align_left,
+                  l10n.formatFile,
+                  editable,
+                ),
                 (
                   _DocumentAction.browse,
                   Icons.folder_open,

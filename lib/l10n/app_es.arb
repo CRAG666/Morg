@@ -135,5 +135,9 @@
   "searchHint": "Buscar en {workspace}",
   "summary": "Resumen del workspace",
   "tasks": "Tareas",
-  "uncategorized": "Sin categoría"
+  "uncategorized": "Sin categoría",
+  "formatOnEdit": "Formatear las líneas editadas",
+  "dedentExcess": "Quitar sangría de más",
+  "formatFile": "Formatear archivo",
+  "formatted": "Formateado"
 }

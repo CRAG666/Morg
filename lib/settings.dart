@@ -29,6 +29,8 @@ class MorgConfig {
     required this.journalStrategy,
     required this.journalTemplate,
     required this.useJournalTemplate,
+    required this.formatOnEdit,
+    required this.dedentExcess,
   });
 
   factory MorgConfig.parse(String source) {
@@ -61,6 +63,13 @@ class MorgConfig {
     final journal = _object(
       _object(modules['core.journal'], 'core.journal')['config'],
       'core.journal.config',
+    );
+    final indent = _object(
+      _object(
+        modules['core.esupports.indent'],
+        'core.esupports.indent',
+      )['config'],
+      'core.esupports.indent.config',
     );
     final strategy = journal['strategy'] as String? ?? 'nested';
     final author = metagen['author'] as String? ?? '';
@@ -104,6 +113,8 @@ class MorgConfig {
       },
       journalTemplate: journal['template_name'] as String? ?? 'template.norg',
       useJournalTemplate: journal['use_template'] as bool? ?? true,
+      formatOnEdit: indent['format_on_escape'] as bool? ?? true,
+      dedentExcess: indent['dedent_excess'] as bool? ?? true,
     );
   }
 
@@ -120,6 +131,8 @@ class MorgConfig {
   final JournalStrategy journalStrategy;
   final String journalTemplate;
   final bool useJournalTemplate;
+  final bool formatOnEdit;
+  final bool dedentExcess;
 }
 
 enum JournalStrategy { nested, flat }

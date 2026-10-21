@@ -464,4 +464,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uncategorized => 'Uncategorized';
+
+  @override
+  String get formatOnEdit => 'Format edited lines';
+
+  @override
+  String get dedentExcess => 'Remove extra indentation';
+
+  @override
+  String get formatFile => 'Format file';
+
+  @override
+  String get formatted => 'Formatted';
 }

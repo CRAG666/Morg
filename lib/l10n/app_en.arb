@@ -284,5 +284,9 @@
   },
   "summary": "Workspace summary",
   "tasks": "Tasks",
-  "uncategorized": "Uncategorized"
+  "uncategorized": "Uncategorized",
+  "formatOnEdit": "Format edited lines",
+  "dedentExcess": "Remove extra indentation",
+  "formatFile": "Format file",
+  "formatted": "Formatted"
 }

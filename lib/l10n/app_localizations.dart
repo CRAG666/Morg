@@ -913,6 +913,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uncategorized'**
   String get uncategorized;
+
+  /// No description provided for @formatOnEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Format edited lines'**
+  String get formatOnEdit;
+
+  /// No description provided for @dedentExcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove extra indentation'**
+  String get dedentExcess;
+
+  /// No description provided for @formatFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Format file'**
+  String get formatFile;
+
+  /// No description provided for @formatted.
+  ///
+  /// In en, this message translates to:
+  /// **'Formatted'**
+  String get formatted;
 }
 
 class _AppLocalizationsDelegate

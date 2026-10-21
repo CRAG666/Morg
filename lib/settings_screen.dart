@@ -13,6 +13,7 @@ const _icons = ['load', 'core.concealer', 'config', 'icons'];
 const _metagen = ['load', 'core.esupports.metagen', 'config'];
 const _dirman = ['load', 'core.dirman', 'config'];
 const _journal = ['load', 'core.journal', 'config'];
+const _indent = ['load', 'core.esupports.indent', 'config'];
 
 void _notify(BuildContext context, String message) =>
     ScaffoldMessenger.of(context)
@@ -150,6 +151,16 @@ class SettingsScreen extends StatelessWidget {
               null: l10n.none,
               for (final name in config.workspaces.keys) name: name,
             },
+          ),
+          _SwitchSetting(
+            label: l10n.formatOnEdit,
+            path: [..._indent, 'format_on_escape'],
+            fallback: true,
+          ),
+          _SwitchSetting(
+            label: l10n.dedentExcess,
+            path: [..._indent, 'dedent_excess'],
+            fallback: true,
           ),
           _Section(l10n.journal),
           _TextSetting(

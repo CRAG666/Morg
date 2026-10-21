@@ -32,7 +32,7 @@
 - **Faithful to `core.concealer`**: the same icons, ordered-list formats and TODO glyphs as neorg, and the colors
   of *your* Neovim colorscheme (export it with one command, see [Themes](#themes)).
 - **Configured like neorg**: `morg.json` has the same structure as `require("neorg").setup()`
-  (`core.concealer`, `core.dirman`, `core.esupports.metagen`, `core.journal`).
+  (`core.concealer`, `core.dirman`, `core.esupports.metagen`, `core.esupports.indent`, `core.journal`).
 - **Workspaces**: local folders (for example synced with Syncthing) and cloud folders through Android's Storage
   Access Framework (Nextcloud, OneDrive, …). Links resolve like `core.esupports.hop`: `$/`, `$name/`, `~/`,
   absolute and relative paths, `{* Heading}`, `{$ definition}`, `{^ footnote}`, `{# generic}` (also `#name`
@@ -49,6 +49,9 @@
 - **Writing**: lists and quotes continue when you press Enter, like `core.itero` (an empty item ends the list),
   and typing `{` suggests headings, definitions, footnotes and the files of the workspace. Edit the whole file,
   `updated:` is refreshed on save like metagen.
+- **Formatting like `core.esupports.indent`**: the lines you change are reindented with neorg's rules (content
+  under the column of its heading's title, list continuations under the item text, `@end` under its tag), and
+  **⋮ → Format file** reindents the whole note like `gg=G` in Neovim.
 - **Workspace search, task list and agenda**: search every note (smart case, `a|b` for alternatives), list all
   tasks by state, and see dated tasks (`<` due, `>` start, `@` timestamp) by day with overdue ones first.
 - **Journal and summaries**: open today's, any date's, the previous or the next journal entry (`core.journal`),
@@ -96,6 +99,12 @@ from the home screen, and nothing you change there is saved.
 | Type `{` | Suggests headings, definitions, footnotes and workspace files; tap one to insert the link |
 | **Undo** / **Redo** (top bar) | Reverts or repeats the last changes made in the app |
 | ⋮ → **Edit** | Edits the whole file as plain text |
+| ⋮ → **Format file** | Reindents the whole note like `gg=G` in Neovim; **Undo** in the notice reverts it |
+
+Every change made in the app is reindented with neorg's rules, but only the lines it touches (and the element or
+heading they belong to), like neorg does when you press Enter or Esc. Turn it off in **Settings → Notes → Format
+edited lines** (`core.esupports.indent.config.format_on_escape`); **Remove extra indentation** (`dedent_excess`)
+controls whether lines indented too far to the right are moved back.
 
 ### Tasks
 
