@@ -270,14 +270,12 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
               ),
             ),
           Expanded(
-            child: SelectionArea(
-              child: SuperListView.builder(
-                controller: _scrollController,
-                listController: _listController,
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
-                itemCount: rows.length,
-                itemBuilder: (context, index) => _row(rows[index]),
-              ),
+            child: SuperListView.builder(
+              controller: _scrollController,
+              listController: _listController,
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
+              itemCount: rows.length,
+              itemBuilder: (context, index) => _row(rows[index]),
             ),
           ),
         ],
@@ -301,20 +299,25 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       ),
       _ => (null, null),
     };
-    if (prefix == null || onLongPress == null) return content;
+    if (_revealed != null) return content;
+    if (prefix == null || onLongPress == null) {
+      return SelectionArea(child: content);
+    }
     final zoneEnd = (indent + prefix.length + 1) * _charWidth;
-    return RawGestureDetector(
-      behavior: HitTestBehavior.translucent,
-      gestures: {
-        _PrefixLongPress:
-            GestureRecognizerFactoryWithHandlers<_PrefixLongPress>(
-              () => _PrefixLongPress(zoneEnd),
-              (recognizer) => recognizer
-                ..zoneEnd = zoneEnd
-                ..onLongPressStart = (_) => onLongPress(),
-            ),
-      },
-      child: content,
+    return SelectionArea(
+      child: RawGestureDetector(
+        behavior: HitTestBehavior.translucent,
+        gestures: {
+          _PrefixLongPress:
+              GestureRecognizerFactoryWithHandlers<_PrefixLongPress>(
+                () => _PrefixLongPress(zoneEnd),
+                (recognizer) => recognizer
+                  ..zoneEnd = zoneEnd
+                  ..onLongPressStart = (_) => onLongPress(),
+              ),
+        },
+        child: content,
+      ),
     );
   }
 
@@ -366,7 +369,9 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       _BlockRow() => (0, null),
     };
     final onTransform = widget.onTransform;
-    if (status == null || onTransform == null) return child;
+    if (status == null || onTransform == null || _revealed != null) {
+      return child;
+    }
     Widget background(Color color, IconData icon, Alignment alignment) =>
         Container(
           color: color,

@@ -154,27 +154,28 @@ class _SourceEditorState extends State<SourceEditor> {
           .withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(4),
     ),
-    child: TapRegion(
-      groupId: _focus,
-      onTapOutside: (_) => _focus.unfocus(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focus,
-            autofocus: true,
-            readOnly: widget.readOnly,
-            maxLines: null,
-            style: widget.style,
-            inputFormatters: const [ListContinuation()],
-            onTapOutside: (_) {},
-            decoration: const InputDecoration.collapsed(hintText: ''),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _controller,
+          focusNode: _focus,
+          autofocus: true,
+          readOnly: widget.readOnly,
+          maxLines: null,
+          style: widget.style,
+          inputFormatters: const [ListContinuation()],
+          onTapOutside: (_) => _focus.unfocus(),
+          decoration: const InputDecoration.collapsed(hintText: ''),
+        ),
+        if (widget.completions case final completions?)
+          TextFieldTapRegion(
+            child: CompletionBar(
+              controller: _controller,
+              completions: completions,
+            ),
           ),
-          if (widget.completions case final completions?)
-            CompletionBar(controller: _controller, completions: completions),
-        ],
-      ),
+      ],
     ),
   );
 }

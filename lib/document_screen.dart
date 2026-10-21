@@ -68,6 +68,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
   final _redo = <String>[];
   final _view = GlobalKey<NorgDocumentViewState>();
   List<String> _files = const [];
+  late MorgConfig _config;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _config = MorgSettingsScope.of(context).config;
+  }
 
   @override
   void initState() {
@@ -104,22 +111,22 @@ class _DocumentScreenState extends State<DocumentScreen> {
     try {
       final note = widget.note;
       final source = await note.store.read(note.path);
+      if (!mounted) return;
       setState(() {
         _source = source;
         _blocks = parseNorg(source);
         _error = null;
       });
     } on FileSystemException catch (error) {
-      setState(() => _error = error);
+      if (mounted) setState(() => _error = error);
     }
   }
 
   Future<void> _write(String edited, {bool record = true}) async {
     final note = widget.note;
     final previous = _source;
-    final config = MorgSettingsScope.of(context).config;
-    final source = record && previous != null && config.formatOnEdit
-        ? reindentChanges(previous, edited, dedentExcess: config.dedentExcess)
+    final source = record && previous != null && _config.formatOnEdit
+        ? reindentChanges(previous, edited, dedentExcess: _config.dedentExcess)
         : edited;
     await note.store.write(note.path, touchUpdated(source, DateTime.now()));
     if (record && previous != null) {
@@ -441,6 +448,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
           ),
         ],
       ),
+      endDrawerEnableOpenDragGesture: false,
       endDrawer: Drawer(
         child: SafeArea(
           child: ListView(
