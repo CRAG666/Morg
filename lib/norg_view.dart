@@ -250,8 +250,10 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       listController: _listController,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
       itemCount: rows.length,
-      itemBuilder: (context, index) =>
-          _SelectionGroup(copied: _asLine, child: _row(rows[index])),
+      itemBuilder: (context, index) => _SelectionGroup(
+        copied: _copiedLine(rows[index]),
+        child: _row(rows[index]),
+      ),
     );
     final narrowed = _narrowedHeading;
     if (narrowed == null) _narrowed = null;
@@ -287,6 +289,15 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
         ],
       ),
     );
+  }
+
+  String Function(String text) _copiedLine(_Row row) {
+    final icon = row is _HeadingRow
+        ? iconForLevel(_icons.headingIcons, row.heading.level)
+        : null;
+    return (text) => icon != null && text.startsWith(icon)
+        ? '${text.substring(icon.length).trimLeft()}\n'
+        : '$text\n';
   }
 
   Widget _row(_Row row) {
@@ -545,18 +556,12 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     return Text.rich(
       TextSpan(
         children: [
-          WidgetSpan(
-            alignment: PlaceholderAlignment.baseline,
-            baseline: TextBaseline.alphabetic,
-            child: GestureDetector(
-              onTap: heading.children.isEmpty ? null : () => _toggle(line),
-              child: SelectionContainer.disabled(
-                child: Text(
-                  '${iconForLevel(_icons.headingIcons, level)} ',
-                  style: _hl('@neorg.headings.$level.prefix'),
-                ),
-              ),
-            ),
+          TextSpan(
+            text: '${iconForLevel(_icons.headingIcons, level)} ',
+            style: _hl('@neorg.headings.$level.prefix'),
+            recognizer: heading.children.isEmpty
+                ? null
+                : _recognizer(('fold', line), () => _toggle(line)),
           ),
           if (heading.task case final task?) ..._taskSpans(task, line),
           _spans(heading.title, titleStyle),
@@ -1218,8 +1223,6 @@ class _PrefixLongPress extends LongPressGestureRecognizer {
   bool isPointerAllowed(PointerDownEvent event) =>
       event.localPosition.dx <= zoneEnd && super.isPointerAllowed(event);
 }
-
-String _asLine(String text) => '$text\n';
 
 class _MappedSelectionDelegate extends StaticSelectionContainerDelegate {
   _MappedSelectionDelegate(this.copied);
