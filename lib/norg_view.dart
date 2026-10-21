@@ -288,11 +288,45 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
   Widget _row(_Row row) {
     final range = row.range;
     final revealed = _revealed == range.start && range.end > range.start;
+    final indent = row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0);
+    final content = _rowContent(row, revealed: revealed, indent: indent);
+    final (prefix, onLongPress) = switch (row) {
+      _HeadingRow(:final heading) when !revealed => (
+        iconForLevel(_icons.headingIcons, heading.level),
+        () => _elementMenu(heading.line, heading: heading),
+      ),
+      _ItemRow(:final item, :final ordinal) when !revealed => (
+        _itemIcon(item, ordinal),
+        () => _elementMenu(item.line),
+      ),
+      _ => (null, null),
+    };
+    if (prefix == null || onLongPress == null) return content;
+    final zoneEnd = (indent + prefix.length + 1) * _charWidth;
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: {
+        _PrefixLongPress:
+            GestureRecognizerFactoryWithHandlers<_PrefixLongPress>(
+              () => _PrefixLongPress(zoneEnd),
+              (recognizer) => recognizer
+                ..zoneEnd = zoneEnd
+                ..onLongPressStart = (_) => onLongPress(),
+            ),
+      },
+      child: content,
+    );
+  }
+
+  Widget _rowContent(
+    _Row row, {
+    required bool revealed,
+    required double indent,
+  }) {
+    final range = row.range;
     final tags = row is _BlockRow ? row.block.tags : const <CarryoverTag>[];
     return _indented(
-      revealed
-          ? 0
-          : row.depth * 2.0 + (row is _ItemRow ? row.item.level - 1 : 0),
+      revealed ? 0 : indent,
       Padding(
         padding: EdgeInsets.only(bottom: row is _ItemRow && !row.last ? 2 : 8),
         child: _withTagLines(
@@ -508,7 +542,6 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
             baseline: TextBaseline.alphabetic,
             child: GestureDetector(
               onTap: heading.children.isEmpty ? null : () => _toggle(line),
-              onLongPressStart: (_) => _elementMenu(line, heading: heading),
               child: Text(
                 '${iconForLevel(_icons.headingIcons, level)} ',
                 style: _hl('@neorg.headings.$level.prefix'),
@@ -688,26 +721,24 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       ),
   ]);
 
+  String _itemIcon(ListItem item, int ordinal) =>
+      item.kind == NestableKind.ordered
+      ? formatOrderedIcon(
+          iconForLevel(_icons.orderedIcons, item.level),
+          ordinal,
+        )
+      : iconForLevel(_icons.listIcons, item.level);
+
   Widget _listItem(ListItem item, int ordinal, (int, int)? progress) {
-    final ordered = item.kind == NestableKind.ordered;
-    final icon = ordered
-        ? formatOrderedIcon(
-            iconForLevel(_icons.orderedIcons, item.level),
-            ordinal,
-          )
-        : iconForLevel(_icons.listIcons, item.level);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onLongPressStart: (_) => _elementMenu(item.line),
-          child: Text(
-            '$icon ',
-            style: _hl(
-              ordered
-                  ? '@neorg.lists.ordered.prefix'
-                  : '@neorg.lists.unordered.prefix',
-            ),
+        Text(
+          '${_itemIcon(item, ordinal)} ',
+          style: _hl(
+            item.kind == NestableKind.ordered
+                ? '@neorg.lists.ordered.prefix'
+                : '@neorg.lists.unordered.prefix',
           ),
         ),
         Expanded(
@@ -1158,4 +1189,14 @@ class HeadingOutline extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PrefixLongPress extends LongPressGestureRecognizer {
+  _PrefixLongPress(this.zoneEnd);
+
+  double zoneEnd;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      event.localPosition.dx <= zoneEnd && super.isPointerAllowed(event);
 }

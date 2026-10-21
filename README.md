@@ -72,6 +72,66 @@ version.
 On first launch grant **File access** if you keep your notes in a regular folder (Syncthing, local storage), then
 tap **Add workspace** and choose the folder. Cloud folders work without that permission.
 
+## Using Morg
+
+Morg mirrors what you do in Neovim with taps and gestures. Try them on the bundled **Neorg help page**: it opens
+from the home screen, and nothing you change there is saved.
+
+### Reading
+
+| Gesture | What it does |
+|---|---|
+| Tap a link | Follows it: headings, definitions, footnotes and anchors jump inside the note; other notes, files and URLs open |
+| Tap a heading icon | Folds or unfolds the heading (a folded heading ends with `…`) |
+| Tap **Outline** in the top bar | Lists every heading; tap one to jump to it |
+| Long-press a heading icon → **Focus** | Shows only that heading and its children; the × in the bar or *back* shows everything again |
+| Long-press any text | Selects it, to copy |
+
+### Editing
+
+| Gesture | What it does |
+|---|---|
+| Tap an element (paragraph, heading, list item, block) | Shows its Norg source, highlighted, ready to edit; tap outside to save |
+| Enter at the end of a list item or quote | Starts the next item (`( )` included for tasks); Enter on an empty item ends the list |
+| Type `{` | Suggests headings, definitions, footnotes and workspace files; tap one to insert the link |
+| **Undo** / **Redo** (top bar) | Reverts or repeats the last changes made in the app |
+| ⋮ → **Edit** | Edits the whole file as plain text |
+
+### Tasks
+
+| Gesture | What it does |
+|---|---|
+| Tap the `( )` of a task | Cycles it like neorg: undone → done → pending |
+| Long-press the `( )` | Picks any of the eight states, or sets or removes a due date |
+| Swipe a task to the right | Advances its state |
+| Swipe a task to the left | Deletes it (and its children); **Undo** in the notice brings it back |
+
+Children follow their parent and parents are recomputed from their children, as in `core.qol.todo_items`. A task
+with subtasks shows its progress, `[2/5] (40%)`.
+
+### Structure
+
+Long-press a **heading icon** or a **list bullet**, or the empty space to its left, to open the element menu:
+
+- **Focus** (headings only).
+- **Promote** / **Demote** the element and its children.
+- **Move up** / **Move down** among its siblings, with its children.
+- **Make it a numbered list** / **Make it a bulleted list**, for the whole list level.
+- **Make it a task**.
+- **Delete**.
+
+### Workspace
+
+| Where | What it does |
+|---|---|
+| **Search** in a note or in the file browser | Searches every note (lowercase ignores case, `a\|b` matches either), shows the **Tasks** of the workspace filtered by state, and the **Agenda** of dated tasks: overdue first, then by day |
+| **Agenda** in the file browser | Opens the agenda directly |
+| ⋮ in a note | **Journal** of today or of any date, the previous or next day when the note is a journal entry, and **Export to Markdown** |
+| ⋮ in the file browser | **Journal for a date…** and **Workspace summary**, which writes `summary.norg` with every note grouped by `categories:` |
+
+Dates use the Norg timestamp format from the specification: `(< Sat, 29 Oct 2026)` is a due date,
+`(> …)` a start date and `(@ …)` a timestamp; ISO dates like `2026-10-29` work too.
+
 ## Configuration
 
 Everything can be changed in **Settings** (language, theme, colorscheme, concealer icons, author, index file, default
