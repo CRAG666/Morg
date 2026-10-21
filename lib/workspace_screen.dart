@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import 'document_screen.dart';
+import 'find_screen.dart';
+import 'notes.dart';
 import 'prompt_dialog.dart';
 import 'settings.dart';
 import 'theme_toggle.dart';
+import 'workspace/index.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 import 'l10n/l10n.dart';
+
+enum _WorkspaceMenu { journalDate, summary }
+
+const _summaryFile = 'summary.norg';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
@@ -67,26 +74,51 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     await _open(DocumentScreen(note: ref));
   }
 
-  Future<void> _openJournalToday() async {
+  Future<void> _openJournal(DateTime date) async {
     final config = MorgSettingsScope.of(context).config;
+    final ref = await journalEntry(_store, config, date);
+    await _open(DocumentScreen(note: ref));
+  }
+
+  Future<void> _pickJournalDate() async {
     final now = DateTime.now();
-    String two(int value) => value.toString().padLeft(2, '0');
-    final entry = switch (config.journalStrategy) {
-      JournalStrategy.nested => p.posix.join(
-        '${now.year}',
-        two(now.month),
-        '${two(now.day)}.norg',
-      ),
-      JournalStrategy.flat =>
-        '${now.year}-${two(now.month)}-${two(now.day)}.norg',
-    };
-    final template = p.posix.join(config.journalFolder, config.journalTemplate);
-    final useTemplate =
-        config.useJournalTemplate && await _store.exists(template);
-    await _openNote(
-      p.posix.join(config.journalFolder, entry),
-      contents: useTemplate ? await _store.read(template) : null,
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 30),
+      lastDate: DateTime(now.year + 10),
     );
+    if (date != null) await _openJournal(date);
+  }
+
+  Future<void> _summary() async {
+    final l10n = context.l10n;
+    final summary = workspaceSummary(
+      await indexNotes(_store),
+      uncategorized: l10n.uncategorized,
+    );
+    if (await _store.exists(_summaryFile)) {
+      if (!mounted) return;
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          content: Text(l10n.replaceFileQuestion(_summaryFile)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.replace),
+            ),
+          ],
+        ),
+      );
+      if (!(replace ?? false)) return;
+    }
+    await _store.write(_summaryFile, '$summary\n');
+    await _open(DocumentScreen(note: NoteRef(_store, _summaryFile)));
   }
 
   Future<void> _createNote() async {
@@ -124,10 +156,49 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           if (_isRoot)
             IconButton(
               tooltip: context.l10n.journalToday,
-              onPressed: _openJournalToday,
+              onPressed: () => _openJournal(DateTime.now()),
               icon: const Icon(Icons.today),
             ),
+          IconButton(
+            tooltip: context.l10n.search,
+            onPressed: () => _open(FindScreen(workspace: widget.workspace)),
+            icon: const Icon(Icons.search),
+          ),
+          IconButton(
+            tooltip: context.l10n.agenda,
+            onPressed: () => _open(
+              FindScreen(
+                workspace: widget.workspace,
+                initialTab: FindTab.agenda,
+              ),
+            ),
+            icon: const Icon(Icons.event_note),
+          ),
           const ThemeToggleButton(),
+          PopupMenuButton<_WorkspaceMenu>(
+            onSelected: (action) => switch (action) {
+              _WorkspaceMenu.journalDate => _pickJournalDate(),
+              _WorkspaceMenu.summary => _summary(),
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _WorkspaceMenu.journalDate,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_month),
+                  title: Text(context.l10n.journalOnDate),
+                ),
+              ),
+              PopupMenuItem(
+                value: _WorkspaceMenu.summary,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.summarize),
+                  title: Text(context.l10n.summary),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(

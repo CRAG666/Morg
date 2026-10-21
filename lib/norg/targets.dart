@@ -35,6 +35,7 @@ class DocumentTargets {
   final _footnotes = <String, int>{};
   final _generic = <String, int>{};
   final _anchors = <String, String>{};
+  final locations = <String>[];
 
   int? lineOf(String location) {
     final match = linkLocation.firstMatch(location);
@@ -70,15 +71,18 @@ class DocumentTargets {
         case Heading(:final level, :final title, :final children):
           final text = plainText(title);
           _headings.add((level, comparable(text), block.line));
+          locations.add('${'*' * level} $text');
           _remember(_generic, text, block.line);
           _inlines(title, block.line);
           _blocks(children);
         case Definition(:final term, :final content):
           _remember(_definitions, plainText(term), line);
+          locations.add('\$ ${plainText(term)}');
           _remember(_generic, plainText(term), line);
           _blocks(content);
         case Footnote(:final title, :final content):
           _remember(_footnotes, title, line);
+          locations.add('^ $title');
           _remember(_generic, title, line);
           _blocks(content);
         case Paragraph(:final content):

@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:saf_util/saf_util.dart';
 
 import 'document_screen.dart';
+import 'notes.dart';
 import 'prompt_dialog.dart';
 import 'settings.dart';
 import 'settings_screen.dart';

@@ -13,28 +13,20 @@ import 'package:url_launcher/url_launcher.dart';
 import 'config/concealer_config.dart';
 import 'highlight/languages.dart';
 import 'norg/ast.dart';
+import 'norg/edits.dart';
 import 'norg/parser.dart';
+import 'norg/structure.dart';
 import 'norg/targets.dart';
 import 'raw_highlight.dart';
 import 'settings.dart';
 import 'source_editor.dart';
 import 'theme/norg_theme.dart';
+import 'todo_menu.dart';
 import 'l10n/l10n.dart';
 
-Iterable<Heading> _headings(List<Block> blocks) sync* {
-  for (final block in blocks) {
-    switch (block) {
-      case Heading(:final children):
-        yield block;
-        yield* _headings(children);
-      case RangedBlock(children: final nested) ||
-          Definition(content: final nested) ||
-          Footnote(content: final nested):
-        yield* _headings(nested);
-      default:
-    }
-  }
-}
+export 'todo_menu.dart' show SourceEdit;
+
+typedef SourceTransform = void Function(SourceEdit edit, {String? notice});
 
 sealed class _Row {
   const _Row(this.depth);
@@ -51,10 +43,17 @@ class _HeadingRow extends _Row {
 }
 
 class _ItemRow extends _Row {
-  const _ItemRow(this.item, this.ordinal, super.depth, {required this.last});
+  const _ItemRow(
+    this.item,
+    this.ordinal,
+    super.depth, {
+    required this.last,
+    required this.progress,
+  });
   final ListItem item;
   final int ordinal;
   final bool last;
+  final (int, int)? progress;
 
   @override
   SourceRange get range => item.range;
@@ -89,27 +88,30 @@ class NorgDocumentView extends StatefulWidget {
     required this.source,
     this.onEdit,
     this.onLink,
-    this.onTodoTap,
-    this.onTodoSet,
+    this.onTransform,
+    this.completions,
     this.buildImage,
     this.initialLocation,
+    this.initialLine,
   });
 
   final List<Block> blocks;
   final String source;
   final Future<void> Function(SourceRange range, String text)? onEdit;
   final ValueChanged<String>? onLink;
-  final ValueChanged<int>? onTodoTap;
-  final void Function(int line, TodoStatus status)? onTodoSet;
+  final SourceTransform? onTransform;
+  final LinkCompletions? completions;
   final Widget? Function(String path)? buildImage;
   final String? initialLocation;
+  final int? initialLine;
 
   @override
-  State<NorgDocumentView> createState() => _NorgDocumentViewState();
+  State<NorgDocumentView> createState() => NorgDocumentViewState();
 }
 
-class _NorgDocumentViewState extends State<NorgDocumentView> {
+class NorgDocumentViewState extends State<NorgDocumentView> {
   final _collapsed = <int>{};
+  int? _narrowed;
   final _recognizers = <Object, TapGestureRecognizer>{};
   late List<String> _lines = widget.source.split('\n');
   late DocumentTargets _targets = DocumentTargets(widget.blocks);
@@ -129,6 +131,9 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     super.initState();
     if (widget.initialLocation case final location?) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _jumpTo(location));
+    }
+    if (widget.initialLine case final line?) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => jumpToLine(line));
     }
   }
 
@@ -154,7 +159,20 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     super.dispose();
   }
 
-  List<_Row> get _visibleRows => _rows ??= _flatten(widget.blocks, 0, []);
+  Heading? get _narrowedHeading => switch (_narrowed) {
+    final line? => headingAt(widget.blocks, line),
+    null => null,
+  };
+
+  List<_Row> get _visibleRows => _rows ??= switch (_narrowedHeading) {
+    final heading? => _flatten(heading.children, 1, [_HeadingRow(heading, 0)]),
+    null => _flatten(widget.blocks, 0, []),
+  };
+
+  void _narrow(int? line) => setState(() {
+    _narrowed = line;
+    _rows = null;
+  });
 
   List<_Row> _flatten(List<Block> blocks, int depth, List<_Row> rows) {
     for (final block in blocks) {
@@ -164,8 +182,15 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
           if (!_collapsed.contains(line)) _flatten(children, depth + 1, rows);
         case ListBlock(:final items):
           for (final (index, ordinal) in _ordinals(items).indexed) {
-            final last = index == items.length - 1;
-            rows.add(_ItemRow(items[index], ordinal, depth, last: last));
+            rows.add(
+              _ItemRow(
+                items[index],
+                ordinal,
+                depth,
+                last: index == items.length - 1,
+                progress: progressOfItem(items, index),
+              ),
+            );
           }
         default:
           rows.add(_BlockRow(block, depth));
@@ -216,13 +241,46 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     painter.dispose();
 
     final rows = _visibleRows;
-    return SelectionArea(
-      child: SuperListView.builder(
-        controller: _scrollController,
-        listController: _listController,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
-        itemCount: rows.length,
-        itemBuilder: (context, index) => _row(rows[index]),
+    final narrowed = _narrowedHeading;
+    if (narrowed == null) _narrowed = null;
+    return PopScope(
+      canPop: narrowed == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _narrow(null);
+      },
+      child: Column(
+        children: [
+          if (narrowed != null)
+            Material(
+              color:
+                  _theme['@neorg.tags.ranged_verbatim.code_block'].background,
+              child: ListTile(
+                dense: true,
+                leading: const Icon(Icons.center_focus_strong),
+                title: Text(
+                  context.l10n.focusedOn(plainText(narrowed.title)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  tooltip: context.l10n.unfocus,
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _narrow(null),
+                ),
+              ),
+            ),
+          Expanded(
+            child: SelectionArea(
+              child: SuperListView.builder(
+                controller: _scrollController,
+                listController: _listController,
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
+                itemCount: rows.length,
+                itemBuilder: (context, index) => _row(rows[index]),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -246,22 +304,70 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
                   style: _base,
                   highlight: (text) => _rawSpans(text),
                   readOnly: widget.onEdit == null,
+                  completions: widget.completions,
                   onDone: (text) => _commit(range, text),
                 )
-              : GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _revealed = range.start),
-                  child: switch (row) {
-                    _HeadingRow(:final heading) => _headingTitle(heading),
-                    _ItemRow(:final item, :final ordinal) => _listItem(
-                      item,
-                      ordinal,
-                    ),
-                    _BlockRow(:final block) => _taggedBlock(block),
-                  },
+              : _swipeable(
+                  row,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _revealed = range.start),
+                    child: switch (row) {
+                      _HeadingRow(:final heading) => _headingTitle(heading),
+                      _ItemRow(:final item, :final ordinal, :final progress) =>
+                        _listItem(item, ordinal, progress),
+                      _BlockRow(:final block) => _taggedBlock(block),
+                    },
+                  ),
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _swipeable(_Row row, Widget child) {
+    final (line, status) = switch (row) {
+      _HeadingRow(:final heading) => (heading.line, heading.status),
+      _ItemRow(:final item) => (item.line, item.status),
+      _BlockRow() => (0, null),
+    };
+    final onTransform = widget.onTransform;
+    if (status == null || onTransform == null) return child;
+    Widget background(Color color, IconData icon, Alignment alignment) =>
+        Container(
+          color: color,
+          alignment: alignment,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Icon(icon, color: Colors.white),
+        );
+    return Dismissible(
+      key: ValueKey(('swipe', line)),
+      dismissThresholds: const {
+        DismissDirection.startToEnd: 0.3,
+        DismissDirection.endToStart: 0.3,
+      },
+      background: background(
+        Colors.green.shade700,
+        Icons.check,
+        Alignment.centerLeft,
+      ),
+      secondaryBackground: background(
+        Colors.red.shade700,
+        Icons.delete,
+        Alignment.centerRight,
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          onTransform((source) => cycleTodo(source, widget.blocks, line));
+        } else {
+          onTransform(
+            (source) => deleteElement(source, widget.blocks, line) ?? source,
+            notice: context.l10n.deleted,
+          );
+        }
+        return false;
+      },
+      child: child,
     );
   }
 
@@ -393,18 +499,25 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     final level = heading.level;
     final titleStyle = _hl('@neorg.headings.$level.title');
     final line = heading.line;
+    final progress = heading.task == null ? null : progressOfHeading(heading);
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(
-            text: '${iconForLevel(_icons.headingIcons, level)} ',
-            style: _hl('@neorg.headings.$level.prefix'),
-            recognizer: heading.children.isEmpty
-                ? null
-                : _recognizer(('fold', line), () => _toggle(line)),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: GestureDetector(
+              onTap: heading.children.isEmpty ? null : () => _toggle(line),
+              onLongPressStart: (_) => _elementMenu(line, heading: heading),
+              child: Text(
+                '${iconForLevel(_icons.headingIcons, level)} ',
+                style: _hl('@neorg.headings.$level.prefix'),
+              ),
+            ),
           ),
           if (heading.task case final task?) ..._taskSpans(task, line),
           _spans(heading.title, titleStyle),
+          if (progress != null) TextSpan(text: ' ${progressLabel(progress)}'),
           if (_collapsed.contains(line))
             TextSpan(
               text: ' …',
@@ -415,6 +528,106 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       ),
     );
   }
+
+  Future<void> _elementMenu(int line, {Heading? heading}) async {
+    final onTransform = widget.onTransform;
+    final l10n = context.l10n;
+    final source = widget.source;
+    final blocks = widget.blocks;
+    final item = heading == null ? _itemAt(line) : null;
+    final hasStatus = (heading?.status ?? item?.status) != null;
+    final edits = <(IconData, String, SourceEdit)>[
+      (
+        Icons.format_indent_decrease,
+        l10n.promote,
+        (text) => changeLevel(text, blocks, line, -1) ?? text,
+      ),
+      (
+        Icons.format_indent_increase,
+        l10n.demote,
+        (text) => changeLevel(text, blocks, line, 1) ?? text,
+      ),
+      (
+        Icons.arrow_upward,
+        l10n.moveUp,
+        (text) => move(text, blocks, line, -1) ?? text,
+      ),
+      (
+        Icons.arrow_downward,
+        l10n.moveDown,
+        (text) => move(text, blocks, line, 1) ?? text,
+      ),
+      if (item != null)
+        (
+          Icons.swap_vert,
+          item.kind == NestableKind.ordered ? l10n.toUnordered : l10n.toOrdered,
+          (text) => toggleListKind(text, blocks, line) ?? text,
+        ),
+      if (!hasStatus)
+        (
+          Icons.check_box_outline_blank,
+          l10n.makeTask,
+          (text) => setTodo(text, blocks, line, TodoStatus.undone),
+        ),
+    ];
+    final available = onTransform == null
+        ? const <(IconData, String, SourceEdit)>[]
+        : [
+            for (final edit in edits)
+              if (edit.$3(source) != source) edit,
+          ];
+    final chosen = await showModalBottomSheet<VoidCallback>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (heading != null)
+                ListTile(
+                  leading: Icon(
+                    _narrowed == line
+                        ? Icons.center_focus_weak
+                        : Icons.center_focus_strong,
+                  ),
+                  title: Text(_narrowed == line ? l10n.unfocus : l10n.focus),
+                  onTap: () => Navigator.pop(
+                    context,
+                    () => _narrow(_narrowed == line ? null : line),
+                  ),
+                ),
+              for (final (icon, label, edit) in available)
+                ListTile(
+                  leading: Icon(icon),
+                  title: Text(label),
+                  onTap: () => Navigator.pop(context, () => onTransform!(edit)),
+                ),
+              if (onTransform != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(l10n.delete),
+                  onTap: () => Navigator.pop(
+                    context,
+                    () => onTransform(
+                      (text) => deleteElement(text, blocks, line) ?? text,
+                      notice: l10n.deleted,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    chosen?.call();
+  }
+
+  ListItem? _itemAt(int line) =>
+      walkBlocks(widget.blocks)
+          .whereType<ListBlock>()
+          .expand((list) => list.items)
+          .where((item) => item.line == line)
+          .firstOrNull;
 
   TextStyle _todoStyle(TodoStatus? status) =>
       _hl('@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}');
@@ -427,15 +640,30 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     ];
     final text = '(${segments.join('|')})';
     final style = _todoStyle(status);
+    final onTransform = widget.onTransform;
     return [
-      if (status != null && line != null && widget.onTodoTap != null)
+      if (status != null && line != null && onTransform != null)
         WidgetSpan(
           alignment: PlaceholderAlignment.baseline,
           baseline: TextBaseline.alphabetic,
           child: GestureDetector(
-            onTap: () => widget.onTodoTap!(line),
-            onLongPressStart: (details) =>
-                _chooseTodo(line, status, details.globalPosition),
+            onTap: () =>
+                onTransform((source) => cycleTodo(source, widget.blocks, line)),
+            onLongPressStart: (details) async {
+              final edit = await pickTaskEdit(
+                context,
+                position: details.globalPosition,
+                blocks: widget.blocks,
+                line: line,
+                status: status,
+                due: taskDate(
+                  task.details,
+                  '<',
+                  defaultYear: DateTime.now().year,
+                ),
+              );
+              if (edit != null) onTransform(edit);
+            },
             child: Text(text, style: style),
           ),
         )
@@ -445,59 +673,22 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     ];
   }
 
-  Future<void> _chooseTodo(
-    int line,
-    TodoStatus current,
-    Offset position,
-  ) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    PopupMenuItem<TodoStatus> item(TodoStatus status) => PopupMenuItem(
-      value: status,
-      child: Row(
-        children: [
-          SizedBox(
-            width: _charWidth * 5,
-            child: Text(
-              '(${_icons.todoIcons[status]})',
-              style: _todoStyle(status),
-            ),
-          ),
-          Text(todoLabel(context.l10n, status)),
-        ],
-      ),
-    );
-    final chosen = await showMenu<TodoStatus>(
-      context: context,
-      position: RelativeRect.fromRect(
-        position & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      initialValue: current,
-      items: [
-        for (final group in _todoMenu) ...[
-          if (group != _todoMenu.first) const PopupMenuDivider(),
-          for (final status in group) item(status),
-        ],
-      ],
-    );
-    if (chosen != null && chosen != current) {
-      widget.onTodoSet?.call(line, chosen);
-    }
-  }
-
   Widget _list(ListBlock list) => _column([
     for (final (index, ordinal) in _ordinals(list.items).indexed)
       _indented(
         list.items[index].level - 1.0,
         Padding(
           padding: const EdgeInsets.only(bottom: 2),
-          child: _listItem(list.items[index], ordinal),
+          child: _listItem(
+            list.items[index],
+            ordinal,
+            progressOfItem(list.items, index),
+          ),
         ),
       ),
   ]);
 
-  Widget _listItem(ListItem item, int ordinal) {
+  Widget _listItem(ListItem item, int ordinal, (int, int)? progress) {
     final ordered = item.kind == NestableKind.ordered;
     final icon = ordered
         ? formatOrderedIcon(
@@ -508,12 +699,15 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$icon ',
-          style: _hl(
-            ordered
-                ? '@neorg.lists.ordered.prefix'
-                : '@neorg.lists.unordered.prefix',
+        GestureDetector(
+          onLongPressStart: (_) => _elementMenu(item.line),
+          child: Text(
+            '$icon ',
+            style: _hl(
+              ordered
+                  ? '@neorg.lists.ordered.prefix'
+                  : '@neorg.lists.unordered.prefix',
+            ),
           ),
         ),
         Expanded(
@@ -522,6 +716,8 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
               children: [
                 if (item.task case final task?) ..._taskSpans(task, item.line),
                 _spans(item.content, _base),
+                if (item.task != null && progress != null)
+                  TextSpan(text: ' ${progressLabel(progress)}'),
               ],
             ),
           ),
@@ -711,27 +907,8 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
     );
   }
 
-  Widget _tableOfContents() => _column([
-    for (final heading in _headings(widget.blocks))
-      _indented(
-        heading.level - 1.0,
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '${iconForLevel(_icons.headingIcons, heading.level)} ',
-                style: _hl('@neorg.headings.${heading.level}.prefix'),
-              ),
-              _link(
-                '${'*' * heading.level} ${plainText(heading.title)}',
-                heading.title,
-                _hl('@neorg.links.location.heading.${heading.level}'),
-              ),
-            ],
-          ),
-        ),
-      ),
-  ]);
+  Widget _tableOfContents() =>
+      HeadingOutline(blocks: widget.blocks, onSelect: jumpToLine);
 
   Widget _delimiter(DelimiterLine line) {
     final (icon, group) = switch (line.kind) {
@@ -875,8 +1052,17 @@ class _NorgDocumentViewState extends State<NorgDocumentView> {
       _notify((l10n) => l10n.notFound(location));
       return;
     }
+    jumpToLine(line);
+  }
+
+  void jumpToLine(int line) {
+    final narrowed = _narrowedHeading;
     setState(() {
       _collapsed.clear();
+      if (narrowed != null &&
+          (line < narrowed.line || line >= subtreeEnd(narrowed))) {
+        _narrowed = null;
+      }
       _rows = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -915,19 +1101,61 @@ Widget svgFromUrl(String url) => ConstrainedBox(
   ),
 );
 
-const _todoMenu = [
-  [TodoStatus.undone, TodoStatus.done, TodoStatus.needsInput],
-  [TodoStatus.urgent, TodoStatus.recurring],
-  [TodoStatus.pending, TodoStatus.onHold, TodoStatus.cancelled],
-];
+class HeadingOutline extends StatelessWidget {
+  const HeadingOutline({
+    super.key,
+    required this.blocks,
+    required this.onSelect,
+  });
 
-String todoLabel(AppLocalizations l10n, TodoStatus status) => switch (status) {
-  TodoStatus.undone => l10n.todoUndone,
-  TodoStatus.done => l10n.todoDone,
-  TodoStatus.needsInput => l10n.todoNeedsInput,
-  TodoStatus.urgent => l10n.todoUrgent,
-  TodoStatus.recurring => l10n.todoRecurring,
-  TodoStatus.pending => l10n.todoPending,
-  TodoStatus.onHold => l10n.todoOnHold,
-  TodoStatus.cancelled => l10n.todoCancelled,
-};
+  final List<Block> blocks;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = MorgSettingsScope.of(context);
+    final theme = settings.theme.of(Theme.of(context).brightness);
+    final base = Theme.of(context).textTheme.bodyMedium!
+        .copyWith(color: theme.foreground, height: 1.4);
+    final indent = TextPainter(
+      text: TextSpan(text: 'M', style: base),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final charWidth = indent.width;
+    indent.dispose();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final heading in headingsOf(blocks))
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => onSelect(heading.line),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: (heading.level - 1) * charWidth,
+                bottom: 2,
+              ),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text:
+                          '${iconForLevel(settings.concealer.headingIcons, heading.level)} ',
+                      style: theme['@neorg.headings.${heading.level}.prefix']
+                          .apply(base),
+                    ),
+                    TextSpan(
+                      text: plainText(heading.title),
+                      style:
+                          theme['@neorg.links.location.heading.${heading.level}']
+                              .apply(base),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

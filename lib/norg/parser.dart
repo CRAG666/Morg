@@ -307,18 +307,37 @@ bool _isBlockStart(String line) =>
   final match = _extension.firstMatch(text);
   if (match == null) return (null, text);
   final segments = match[1]!.split('|');
-  final status = todoStatusOf(match[1]!);
+  final statusIndex = segments.indexWhere(isStatusSegment);
   final details = [
-    for (final segment in status == null ? segments : segments.skip(1))
-      if (segment.trim().isNotEmpty) segment.trim(),
+    for (final (index, segment) in segments.indexed)
+      if (index != statusIndex && segment.trim().isNotEmpty) segment.trim(),
   ];
-  return (TaskExtension(status, details), match[2]!);
+  return (
+    TaskExtension(
+      statusIndex < 0 ? null : _segmentStatus(segments[statusIndex]),
+      details,
+    ),
+    match[2]!,
+  );
 }
 
-TodoStatus? todoStatusOf(String extension) {
-  final first = extension.split('|').first.trim();
-  return first.isEmpty ? TodoStatus.undone : _statuses[first[0]];
+bool isStatusSegment(String segment) {
+  final trimmed = segment.trim();
+  return trimmed.isEmpty ||
+      _statuses.containsKey(trimmed) ||
+      (trimmed.startsWith('+') && trimmed.length > 1 && trimmed[1] == ' ');
 }
+
+TodoStatus _segmentStatus(String segment) {
+  final trimmed = segment.trim();
+  return trimmed.isEmpty ? TodoStatus.undone : _statuses[trimmed[0]]!;
+}
+
+TodoStatus? todoStatusOf(String extension) =>
+    switch (extension.split('|').where(isStatusSegment).firstOrNull) {
+      final segment? => _segmentStatus(segment),
+      null => null,
+    };
 
 Map<String, String> _metaFields(List<String> body) {
   final fields = <String, String>{};

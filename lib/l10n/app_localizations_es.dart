@@ -330,4 +330,139 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get todoCancelled => 'Cancelada';
+
+  @override
+  String get agenda => 'Agenda';
+
+  @override
+  String get clear => 'Borrar';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get deleted => 'Eliminado';
+
+  @override
+  String get promote => 'Subir de nivel';
+
+  @override
+  String get demote => 'Bajar de nivel';
+
+  @override
+  String get moveUp => 'Mover arriba';
+
+  @override
+  String get moveDown => 'Mover abajo';
+
+  @override
+  String get toOrdered => 'Convertir en lista numerada';
+
+  @override
+  String get toUnordered => 'Convertir en lista con viñetas';
+
+  @override
+  String get makeTask => 'Convertir en tarea';
+
+  @override
+  String get focus => 'Enfocar';
+
+  @override
+  String get unfocus => 'Salir del enfoque';
+
+  @override
+  String focusedOn(String title) {
+    return 'Enfocado en $title';
+  }
+
+  @override
+  String get dueDate => 'Fecha límite…';
+
+  @override
+  String get removeDueDate => 'Quitar fecha límite';
+
+  @override
+  String dueOn(String date) {
+    return 'Vence $date';
+  }
+
+  @override
+  String startsOn(String date) {
+    return 'Empieza $date';
+  }
+
+  @override
+  String happensOn(String date) {
+    return 'El $date';
+  }
+
+  @override
+  String priority(String priority) {
+    return 'Prioridad $priority';
+  }
+
+  @override
+  String get exportMarkdown => 'Exportar a Markdown';
+
+  @override
+  String get exported => 'Exportado';
+
+  @override
+  String get journalOnDate => 'Diario de otra fecha…';
+
+  @override
+  String get previousDay => 'Día anterior';
+
+  @override
+  String get nextDay => 'Día siguiente';
+
+  @override
+  String get noDatedTasks =>
+      'Aún no hay tareas con fecha. Mantén presionado el ( ) de una tarea para ponerle fecha límite.';
+
+  @override
+  String get noResults => 'Sin resultados';
+
+  @override
+  String get outline => 'Índice';
+
+  @override
+  String get overdue => 'Vencidas';
+
+  @override
+  String get today => 'Hoy';
+
+  @override
+  String get tomorrow => 'Mañana';
+
+  @override
+  String get redo => 'Rehacer';
+
+  @override
+  String get undo => 'Deshacer';
+
+  @override
+  String get replace => 'Reemplazar';
+
+  @override
+  String replaceFileQuestion(String file) {
+    return '$file ya existe. ¿Reemplazarlo?';
+  }
+
+  @override
+  String get search => 'Buscar';
+
+  @override
+  String searchHint(String workspace) {
+    return 'Buscar en $workspace';
+  }
+
+  @override
+  String get summary => 'Resumen del workspace';
+
+  @override
+  String get tasks => 'Tareas';
+
+  @override
+  String get uncategorized => 'Sin categoría';
 }

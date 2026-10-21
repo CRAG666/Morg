@@ -673,6 +673,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get todoCancelled;
+
+  /// No description provided for @agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'Agenda'**
+  String get agenda;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get deleted;
+
+  /// No description provided for @promote.
+  ///
+  /// In en, this message translates to:
+  /// **'Promote'**
+  String get promote;
+
+  /// No description provided for @demote.
+  ///
+  /// In en, this message translates to:
+  /// **'Demote'**
+  String get demote;
+
+  /// No description provided for @moveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get moveUp;
+
+  /// No description provided for @moveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get moveDown;
+
+  /// No description provided for @toOrdered.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it a numbered list'**
+  String get toOrdered;
+
+  /// No description provided for @toUnordered.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it a bulleted list'**
+  String get toUnordered;
+
+  /// No description provided for @makeTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it a task'**
+  String get makeTask;
+
+  /// No description provided for @focus.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus'**
+  String get focus;
+
+  /// No description provided for @unfocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop focusing'**
+  String get unfocus;
+
+  /// No description provided for @focusedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Focused on {title}'**
+  String focusedOn(String title);
+
+  /// No description provided for @dueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Due date…'**
+  String get dueDate;
+
+  /// No description provided for @removeDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove due date'**
+  String get removeDueDate;
+
+  /// No description provided for @dueOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {date}'**
+  String dueOn(String date);
+
+  /// No description provided for @startsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts {date}'**
+  String startsOn(String date);
+
+  /// No description provided for @happensOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On {date}'**
+  String happensOn(String date);
+
+  /// No description provided for @priority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority {priority}'**
+  String priority(String priority);
+
+  /// No description provided for @exportMarkdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to Markdown'**
+  String get exportMarkdown;
+
+  /// No description provided for @exported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported'**
+  String get exported;
+
+  /// No description provided for @journalOnDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal for a date…'**
+  String get journalOnDate;
+
+  /// No description provided for @previousDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous day'**
+  String get previousDay;
+
+  /// No description provided for @nextDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Next day'**
+  String get nextDay;
+
+  /// No description provided for @noDatedTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks with dates yet. Long-press the ( ) of a task to give it a due date.'**
+  String get noDatedTasks;
+
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found'**
+  String get noResults;
+
+  /// No description provided for @outline.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get outline;
+
+  /// No description provided for @overdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get overdue;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @tomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get tomorrow;
+
+  /// No description provided for @redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @replace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get replace;
+
+  /// No description provided for @replaceFileQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'{file} already exists. Replace it?'**
+  String replaceFileQuestion(String file);
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in {workspace}'**
+  String searchHint(String workspace);
+
+  /// No description provided for @summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace summary'**
+  String get summary;
+
+  /// No description provided for @tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tasks;
+
+  /// No description provided for @uncategorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get uncategorized;
 }
 
 class _AppLocalizationsDelegate

@@ -329,4 +329,139 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todoCancelled => 'Cancelled';
+
+  @override
+  String get agenda => 'Agenda';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get deleted => 'Deleted';
+
+  @override
+  String get promote => 'Promote';
+
+  @override
+  String get demote => 'Demote';
+
+  @override
+  String get moveUp => 'Move up';
+
+  @override
+  String get moveDown => 'Move down';
+
+  @override
+  String get toOrdered => 'Make it a numbered list';
+
+  @override
+  String get toUnordered => 'Make it a bulleted list';
+
+  @override
+  String get makeTask => 'Make it a task';
+
+  @override
+  String get focus => 'Focus';
+
+  @override
+  String get unfocus => 'Stop focusing';
+
+  @override
+  String focusedOn(String title) {
+    return 'Focused on $title';
+  }
+
+  @override
+  String get dueDate => 'Due date…';
+
+  @override
+  String get removeDueDate => 'Remove due date';
+
+  @override
+  String dueOn(String date) {
+    return 'Due $date';
+  }
+
+  @override
+  String startsOn(String date) {
+    return 'Starts $date';
+  }
+
+  @override
+  String happensOn(String date) {
+    return 'On $date';
+  }
+
+  @override
+  String priority(String priority) {
+    return 'Priority $priority';
+  }
+
+  @override
+  String get exportMarkdown => 'Export to Markdown';
+
+  @override
+  String get exported => 'Exported';
+
+  @override
+  String get journalOnDate => 'Journal for a date…';
+
+  @override
+  String get previousDay => 'Previous day';
+
+  @override
+  String get nextDay => 'Next day';
+
+  @override
+  String get noDatedTasks =>
+      'No tasks with dates yet. Long-press the ( ) of a task to give it a due date.';
+
+  @override
+  String get noResults => 'Nothing found';
+
+  @override
+  String get outline => 'Outline';
+
+  @override
+  String get overdue => 'Overdue';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get tomorrow => 'Tomorrow';
+
+  @override
+  String get redo => 'Redo';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get replace => 'Replace';
+
+  @override
+  String replaceFileQuestion(String file) {
+    return '$file already exists. Replace it?';
+  }
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String searchHint(String workspace) {
+    return 'Search in $workspace';
+  }
+
+  @override
+  String get summary => 'Workspace summary';
+
+  @override
+  String get tasks => 'Tasks';
+
+  @override
+  String get uncategorized => 'Uncategorized';
 }

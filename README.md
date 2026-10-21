@@ -40,8 +40,21 @@
 - **Edit in place, like `conceallevel=2`**: tap any element and only that element shows its raw Norg source,
   still highlighted (delimiters dimmed like Neovim's insert mode), ready to edit; tap elsewhere to save.
   Tap a heading icon to fold it.
-- **Editing**: tap a TODO to cycle it or long-press it to pick any of the eight states (neorg order, children and parents are updated), edit the whole file,
-  `updated:` is refreshed on save like metagen, create notes and today's journal entry.
+- **Tasks**: tap a TODO to cycle it, long-press it to pick any of the eight states or a due date
+  (`< Sat, 29 Oct 2026`), swipe right to advance it and left to delete it. Children and parents are updated like
+  `core.qol.todo_items`, and tasks with subtasks show `[done/total] (progress%)` like `core.todo-introspector`.
+- **Structure editing**: long-press a heading icon or a list bullet to focus on it (narrowing), promote or demote
+  it with its children, move it up or down among its siblings, switch a list between bullets and numbers, turn it
+  into a task or delete it (`core.promo`, `core.text-objects`, `core.pivot`). Every change can be undone and redone.
+- **Writing**: lists and quotes continue when you press Enter, like `core.itero` (an empty item ends the list),
+  and typing `{` suggests headings, definitions, footnotes and the files of the workspace. Edit the whole file,
+  `updated:` is refreshed on save like metagen.
+- **Workspace search, task list and agenda**: search every note (smart case, `a|b` for alternatives), list all
+  tasks by state, and see dated tasks (`<` due, `>` start, `@` timestamp) by day with overdue ones first.
+- **Journal and summaries**: open today's, any date's, the previous or the next journal entry (`core.journal`),
+  and generate a `summary.norg` of the workspace grouped by `categories:` (`core.summary`).
+- **Outline and export**: a side panel lists every heading (`core.qol.toc`), and notes export to Markdown
+  (`core.export`).
 - **Workspaces from the UI**: add, rename, relocate or remove them; opening a workspace opens its `index.norg`,
   like `:Neorg workspace`.
 - **Blazing fast**: a linear-time parser (~65 MiB/s) and a virtualized document view that only builds what is

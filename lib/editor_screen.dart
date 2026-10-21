@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'l10n/l10n.dart';
+import 'source_editor.dart';
 
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
@@ -8,11 +9,13 @@ class EditorScreen extends StatefulWidget {
     required this.title,
     required this.source,
     required this.onSave,
+    this.completions,
   });
 
   final String title;
   final String source;
   final Future<void> Function(String source) onSave;
+  final LinkCompletions? completions;
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -88,16 +91,25 @@ class _EditorScreenState extends State<EditorScreen> {
             ),
           ],
         ),
-        body: TextField(
-          controller: _controller,
-          expands: true,
-          maxLines: null,
-          keyboardType: TextInputType.multiline,
-          style: Theme.of(context).textTheme.bodyMedium,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.all(12),
-          ),
+        body: Column(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                expands: true,
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                inputFormatters: const [ListContinuation()],
+                style: Theme.of(context).textTheme.bodyMedium,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(12),
+                ),
+              ),
+            ),
+            if (widget.completions case final completions?)
+              CompletionBar(controller: _controller, completions: completions),
+          ],
         ),
       ),
     ),

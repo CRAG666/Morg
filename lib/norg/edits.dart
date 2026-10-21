@@ -1,4 +1,6 @@
 import 'ast.dart';
+import 'dates.dart';
+import 'parser.dart';
 
 const _statusChars = {
   TodoStatus.undone: ' ',
@@ -151,24 +153,38 @@ TodoStatus? _parentStatus(List<TodoStatus> children) {
   return TodoStatus.pending;
 }
 
-String _withStatus(String line, TodoStatus status) {
+String _withStatus(String line, TodoStatus status) =>
+    _withSegments(line, (segments) {
+      final char = _statusChars[status]!;
+      final index = segments.indexWhere(isStatusSegment);
+      return index < 0 ? [char, ...segments] : (segments..[index] = char);
+    });
+
+String setTaskDate(String source, int line, String marker, DateTime? date) {
+  final lines = source.split('\n');
+  lines[line] = _withSegments(lines[line], (segments) {
+    final kept = segments
+        .where((segment) => !segment.trim().startsWith('$marker '))
+        .toList();
+    return [...kept, if (date != null) '$marker ${norgDate(date)}'];
+  });
+  return lines.join('\n');
+}
+
+String _withSegments(
+  String line,
+  List<String> Function(List<String> segments) update,
+) {
   final match = _detachedPrefix.matchAsPrefix(line);
   if (match == null) {
     throw ArgumentError.value(line, 'line', 'Not a detached modifier');
   }
-  final char = _statusChars[status]!;
   final prefix = match[1]!;
-  final extension = match[2];
-  if (extension == null) {
-    return '$prefix($char) ${line.substring(prefix.length)}';
-  }
-  final segments = match[3]!.split('|');
-  final first = segments.first.trim();
-  final isStatus =
-      segments.first.isNotEmpty &&
-      (first.isEmpty || _statusChars.containsValue(first));
-  final updated = isStatus ? [char, ...segments.skip(1)] : [char, ...segments];
-  return '$prefix(${updated.join('|')}) ${line.substring(match.end)}';
+  final segments = update(match[2] == null ? [] : match[3]!.split('|'));
+  final rest = line.substring(match.end);
+  return segments.isEmpty
+      ? '$prefix$rest'
+      : '$prefix(${segments.join('|')}) $rest';
 }
 
 String touchUpdated(String source, DateTime now) {

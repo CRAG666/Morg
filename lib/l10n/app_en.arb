@@ -195,5 +195,94 @@
   "todoRecurring": "Recurring",
   "todoPending": "Pending",
   "todoOnHold": "On hold",
-  "todoCancelled": "Cancelled"
+  "todoCancelled": "Cancelled",
+  "agenda": "Agenda",
+  "clear": "Clear",
+  "delete": "Delete",
+  "deleted": "Deleted",
+  "promote": "Promote",
+  "demote": "Demote",
+  "moveUp": "Move up",
+  "moveDown": "Move down",
+  "toOrdered": "Make it a numbered list",
+  "toUnordered": "Make it a bulleted list",
+  "makeTask": "Make it a task",
+  "focus": "Focus",
+  "unfocus": "Stop focusing",
+  "focusedOn": "Focused on {title}",
+  "@focusedOn": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "dueDate": "Due date…",
+  "removeDueDate": "Remove due date",
+  "dueOn": "Due {date}",
+  "@dueOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "startsOn": "Starts {date}",
+  "@startsOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "happensOn": "On {date}",
+  "@happensOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "priority": "Priority {priority}",
+  "@priority": {
+    "placeholders": {
+      "priority": {
+        "type": "String"
+      }
+    }
+  },
+  "exportMarkdown": "Export to Markdown",
+  "exported": "Exported",
+  "journalOnDate": "Journal for a date…",
+  "previousDay": "Previous day",
+  "nextDay": "Next day",
+  "noDatedTasks": "No tasks with dates yet. Long-press the ( ) of a task to give it a due date.",
+  "noResults": "Nothing found",
+  "outline": "Outline",
+  "overdue": "Overdue",
+  "today": "Today",
+  "tomorrow": "Tomorrow",
+  "redo": "Redo",
+  "undo": "Undo",
+  "replace": "Replace",
+  "replaceFileQuestion": "{file} already exists. Replace it?",
+  "@replaceFileQuestion": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "search": "Search",
+  "searchHint": "Search in {workspace}",
+  "@searchHint": {
+    "placeholders": {
+      "workspace": {
+        "type": "String"
+      }
+    }
+  },
+  "summary": "Workspace summary",
+  "tasks": "Tasks",
+  "uncategorized": "Uncategorized"
 }
