@@ -4,7 +4,6 @@ import 'package:path/path.dart' as p;
 import 'document_screen.dart';
 import 'find_screen.dart';
 import 'notes.dart';
-import 'prompt_dialog.dart';
 import 'settings.dart';
 import 'theme_toggle.dart';
 import 'workspace/index.dart';
@@ -122,18 +121,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _createNote() async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => PromptDialog(
-        title: context.l10n.newNote,
-        hint: context.l10n.newNoteHint,
-        confirm: context.l10n.create,
-      ),
-    );
-    final trimmed = name?.trim() ?? '';
-    if (trimmed.isEmpty) return;
-    final path = p.posix.join(widget.directory, trimmed);
-    await _openNote(path.endsWith('.norg') ? path : '$path.norg');
+    final ref = await askNewNote(context, _store, directory: widget.directory);
+    if (ref != null) await _open(DocumentScreen(note: ref));
   }
 
   @override

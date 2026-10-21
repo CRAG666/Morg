@@ -28,6 +28,7 @@ const _historyLimit = 100;
 final _queryPrefix = RegExp(r'^([*#$^:/]+)\s*');
 
 enum _DocumentAction {
+  newNote,
   editFile,
   browse,
   journalToday,
@@ -276,10 +277,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   Future<void> _openJournal(Workspace workspace, DateTime date) async {
     final config = MorgSettingsScope.of(context).config;
     final ref = await journalEntry(workspace.store, config, date);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => DocumentScreen(note: ref)),
-    );
+    if (mounted) _push(DocumentScreen(note: ref));
   }
 
   Future<void> _exportMarkdown() async {
@@ -297,6 +295,9 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final config = MorgSettingsScope.of(context).config;
     final journalDate = journalDateOf(config, widget.note.path);
     switch (action) {
+      case _DocumentAction.newNote:
+        final ref = await askNewNote(context, workspace!.store);
+        if (ref != null && mounted) _push(DocumentScreen(note: ref));
       case _DocumentAction.editFile:
         await _edit();
       case _DocumentAction.browse:
@@ -377,6 +378,12 @@ class _DocumentScreenState extends State<DocumentScreen> {
             onSelected: (action) => _act(action, workspace),
             itemBuilder: (context) => [
               for (final (action, icon, label, enabled) in [
+                (
+                  _DocumentAction.newNote,
+                  Icons.note_add,
+                  l10n.newNote,
+                  workspace != null,
+                ),
                 (_DocumentAction.editFile, Icons.edit, l10n.edit, editable),
                 (
                   _DocumentAction.format,

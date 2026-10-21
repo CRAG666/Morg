@@ -1,6 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import 'l10n/l10n.dart';
+
 import 'norg/edits.dart';
+import 'prompt_dialog.dart';
 import 'settings.dart';
 import 'workspace/store.dart';
 
@@ -59,3 +63,25 @@ Future<void> createNote(
   contents ??
       metadataTemplate(title: ref.name, author: author, now: DateTime.now()),
 );
+
+Future<NoteRef?> askNewNote(
+  BuildContext context,
+  NoteStore store, {
+  String directory = '',
+}) async {
+  final author = MorgSettingsScope.of(context).config.author;
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => PromptDialog(
+      title: context.l10n.newNote,
+      hint: context.l10n.newNoteHint,
+      confirm: context.l10n.create,
+    ),
+  );
+  final trimmed = name?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  final path = p.posix.normalize(p.posix.join(directory, trimmed));
+  final ref = NoteRef(store, path.endsWith('.norg') ? path : '$path.norg');
+  if (!await store.exists(ref.path)) await createNote(ref, author: author);
+  return ref;
+}
