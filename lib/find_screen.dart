@@ -26,7 +26,6 @@ const _statusOrder = [
   TodoStatus.cancelled,
 ];
 const _closed = {TodoStatus.done, TodoStatus.cancelled};
-const _dateMarkers = ['<', '>', '@'];
 const _maxMatches = 300;
 
 class _Match {
@@ -48,6 +47,9 @@ class _Dated {
   final String marker;
   final DateTime date;
 }
+
+int _rank(TodoStatus? status) =>
+    status == null ? _statusOrder.length : _statusOrder.indexOf(status);
 
 bool Function(String text) _matcher(String query) {
   final terms = query.trim().split(RegExp(r'\s+')).where((t) => t.isNotEmpty);
@@ -257,34 +259,38 @@ class _FindScreenState extends State<FindScreen> {
 
   Widget _taskTile(_NoteTask entry, {String? date}) {
     final _NoteTask(:note, :task) = entry;
-    final year = DateTime.now().year;
+    final status = task.status;
     final details = [
       note.title,
       ?date,
       if (task.priority case final priority?) context.l10n.priority(priority),
     ];
     return ListTile(
-      leading: GestureDetector(
-        onTap: () =>
-            _edit(note, (source) => cycleTodo(source, note.blocks, task.line)),
-        onLongPressStart: (press) async {
-          final edit = await pickTaskEdit(
-            context,
-            position: press.globalPosition,
-            blocks: note.blocks,
-            line: task.line,
-            status: task.status,
-            due: task.date('<', defaultYear: year),
-          );
-          if (edit != null) await _edit(note, edit);
-        },
-        child: SizedBox(
-          width: 48,
-          child: Text(
-            todoIcon(context, task.status),
-            style: todoStyle(context, task.status),
-          ),
-        ),
+      leading: SizedBox(
+        width: 48,
+        child: status == null
+            ? const Icon(Icons.event_outlined)
+            : GestureDetector(
+                onTap: () => _edit(
+                  note,
+                  (source) => cycleTodo(source, note.blocks, task.line),
+                ),
+                onLongPressStart: (press) async {
+                  final edit = await pickTaskEdit(
+                    context,
+                    position: press.globalPosition,
+                    blocks: note.blocks,
+                    line: task.line,
+                    status: status,
+                    due: task.date('<', today: DateTime.now()),
+                  );
+                  if (edit != null) await _edit(note, edit);
+                },
+                child: Text(
+                  todoIcon(context, status),
+                  style: todoStyle(context, status),
+                ),
+              ),
       ),
       title: Text(task.title),
       subtitle: Text(details.join(' · ')),
@@ -293,18 +299,16 @@ class _FindScreenState extends State<FindScreen> {
   }
 
   Widget _taskList(List<IndexedNote> notes) {
-    final year = DateTime.now().year;
+    final today = DateTime.now();
     final far = DateTime(9999);
     final due = {
       for (final entry in _tasks(notes))
         if (_statuses.contains(entry.task.status))
-          entry: entry.task.date('<', defaultYear: year) ?? far,
+          entry: entry.task.date('<', today: today) ?? far,
     };
     final tasks = due.keys.toList()
       ..sort((a, b) {
-        final byStatus =
-            _statusOrder.indexOf(a.task.status) -
-            _statusOrder.indexOf(b.task.status);
+        final byStatus = _rank(a.task.status) - _rank(b.task.status);
         return byStatus != 0 ? byStatus : due[a]!.compareTo(due[b]!);
       });
     return Column(
@@ -352,6 +356,7 @@ class _FindScreenState extends State<FindScreen> {
     return switch (dated.marker) {
       '<' => l10n.dueOn(day),
       '>' => l10n.startsOn(day),
+      '+' => l10n.repeatsOn(day),
       _ => l10n.happensOn(day),
     };
   }
@@ -367,13 +372,12 @@ class _FindScreenState extends State<FindScreen> {
   }
 
   Widget _agenda(List<IndexedNote> notes) {
-    final year = DateTime.now().year;
     final today = DateUtils.dateOnly(DateTime.now());
     final dated = [
       for (final entry in _tasks(notes))
         if (!_closed.contains(entry.task.status))
-          for (final marker in _dateMarkers)
-            if (entry.task.date(marker, defaultYear: year) case final date?)
+          for (final marker in dateMarkers)
+            if (entry.task.date(marker, today: today) case final date?)
               _Dated(entry, marker, date),
     ]..sort((a, b) => a.date.compareTo(b.date));
     final overdue = [

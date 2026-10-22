@@ -134,6 +134,7 @@ class _MarkdownWriter {
     final label = description.isEmpty
         ? linkLabel(target)
         : _inlines(description);
+    if (target.startsWith('@ ')) return label;
     if (linkLocation.firstMatch(target) case final match?
         when match[1] == '^') {
       return '[^${_slug(match[2]!)}]';

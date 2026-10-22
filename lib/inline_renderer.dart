@@ -89,6 +89,12 @@ class InlineRenderer {
   }
 
   InlineSpan _link(String target, List<Inline> description, TextStyle on) {
+    if (target.startsWith('@ ')) {
+      final timestamp = style.group(linkGroup(target), on);
+      return description.isEmpty
+          ? TextSpan(text: target.substring(2).trim(), style: timestamp)
+          : spans(description, timestamp);
+    }
     final recognizer = linkRecognizer(target);
     final linkStyle = description.isEmpty
         ? style.group(linkGroup(target), on)

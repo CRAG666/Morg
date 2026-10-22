@@ -322,5 +322,13 @@
       }
     }
   },
-  "refresh": "Refresh"
+  "refresh": "Refresh",
+  "repeatsOn": "Repeats {date}",
+  "@repeatsOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  }
 }

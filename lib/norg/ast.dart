@@ -26,9 +26,10 @@ enum DelimiterKind { weak, strong, horizontal }
 enum NestableKind { unordered, ordered }
 
 class TaskExtension {
-  const TaskExtension(this.status, this.details);
+  const TaskExtension(this.status, this.details, {this.recurrence});
   final TodoStatus? status;
   final List<String> details;
+  final String? recurrence;
 }
 
 class CarryoverTag {

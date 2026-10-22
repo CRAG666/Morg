@@ -244,16 +244,29 @@ String progressLabel((int, int) progress) {
   return '[$done/$total] (${done * 100 ~/ total}%)';
 }
 
+const dateMarkers = ['<', '>', '@', '+'];
+
 class TaskEntry {
-  const TaskEntry(this.line, this.status, this.title, this.details);
+  const TaskEntry(
+    this.line,
+    this.status,
+    this.title,
+    this.details, {
+    this.recurrence,
+  });
 
   final int line;
-  final TodoStatus status;
+  final TodoStatus? status;
   final String title;
   final List<String> details;
+  final String? recurrence;
 
-  DateTime? date(String marker, {required int defaultYear}) =>
-      taskDate(details, marker, defaultYear: defaultYear);
+  DateTime? date(String marker, {required DateTime today}) => marker == '+'
+      ? switch (recurrence) {
+          final text? => parseNorgTimestamp(text, today: today)?.next(today),
+          null => null,
+        }
+      : taskDate(details, marker, today: today);
 
   String? get priority => details
       .where((detail) => detail.startsWith('# '))
@@ -262,24 +275,45 @@ class TaskEntry {
 }
 
 Iterable<TaskEntry> tasksOf(List<Block> blocks) sync* {
-  TaskEntry? entry(int line, TaskExtension? task, List<Inline> title) =>
-      switch (task) {
-        TaskExtension(:final status?, :final details) => TaskEntry(
-          line,
-          status,
-          plainText(title),
-          details,
-        ),
-        _ => null,
-      };
+  TaskEntry? entry(int line, TaskExtension? task, List<Inline> title) {
+    if (task == null) return null;
+    final dated =
+        task.recurrence != null ||
+        task.details.any(
+          (detail) =>
+              dateMarkers.any((marker) => detail.startsWith('$marker ')),
+        );
+    if (task.status == null && !dated) return null;
+    return TaskEntry(
+      line,
+      task.status,
+      plainText(title),
+      task.details,
+      recurrence: task.recurrence,
+    );
+  }
+
+  Iterable<TaskEntry> timestamps(int line, List<Inline> content) => [
+    for (final target in _timestamps(content))
+      TaskEntry(line, null, plainText(content).trim(), ['@ $target']),
+  ];
 
   for (final block in walkBlocks(blocks)) {
-    final entries = switch (block) {
+    final Iterable<TaskEntry?> entries = switch (block) {
       Heading(:final line, :final task, :final title) => [
         entry(line, task, title),
+        ...timestamps(line, title),
       ],
       ListBlock(:final items) => [
-        for (final item in items) entry(item.line, item.task, item.content),
+        for (final item in items) ...[
+          entry(item.line, item.task, item.content),
+          ...timestamps(item.line, item.content),
+        ],
+      ],
+      Paragraph(:final content) => timestamps(block.range.start, content),
+      QuoteBlock(lines: final quoteLines) => [
+        for (final quote in quoteLines)
+          ...timestamps(block.range.start, quote.content),
       ],
       Definition(:final task, :final term) => [
         entry(block.range.start, task, term),
@@ -293,13 +327,26 @@ Iterable<TaskEntry> tasksOf(List<Block> blocks) sync* {
   }
 }
 
+Iterable<String> _timestamps(List<Inline> nodes) sync* {
+  for (final node in nodes) {
+    switch (node) {
+      case LinkInline(:final target) when target.startsWith('@ '):
+        yield target.substring(2).trim();
+      case StyledInline(children: final nested) ||
+          AnchorInline(description: final nested):
+        yield* _timestamps(nested);
+      default:
+    }
+  }
+}
+
 DateTime? taskDate(
   List<String> details,
   String marker, {
-  required int defaultYear,
+  required DateTime today,
 }) => switch (details
     .where((detail) => detail.startsWith('$marker '))
     .firstOrNull) {
-  final detail? => parseNorgDate(detail.substring(2), defaultYear: defaultYear),
+  final detail? => parseNorgDate(detail.substring(2), today: today),
   null => null,
 };

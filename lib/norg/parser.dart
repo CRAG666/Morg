@@ -312,10 +312,14 @@ bool _isBlockStart(String line) =>
     for (final (index, segment) in segments.indexed)
       if (index != statusIndex && segment.trim().isNotEmpty) segment.trim(),
   ];
+  final status = statusIndex < 0 ? null : segments[statusIndex].trim();
   return (
     TaskExtension(
-      statusIndex < 0 ? null : _segmentStatus(segments[statusIndex]),
+      status == null ? null : _segmentStatus(status),
       details,
+      recurrence: status != null && status.startsWith('+ ')
+          ? status.substring(2).trim()
+          : null,
     ),
     match[2]!,
   );

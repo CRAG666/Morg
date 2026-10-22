@@ -605,8 +605,9 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
 
   List<InlineSpan> _taskSpans(TaskExtension task, int? line) {
     final status = task.status;
+    final recurrence = task.recurrence == null ? '' : ' ${task.recurrence}';
     final segments = [
-      if (status != null) _style.icons.todoIcons[status]!,
+      if (status != null) '${_style.icons.todoIcons[status]!}$recurrence',
       ...task.details,
     ];
     final text = '(${segments.join('|')})';
@@ -627,17 +628,13 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
                 blocks: widget.blocks,
                 line: line,
                 status: status,
-                due: taskDate(
-                  task.details,
-                  '<',
-                  defaultYear: DateTime.now().year,
-                ),
+                due: taskDate(task.details, '<', today: DateTime.now()),
               );
               if (edit != null) onTransform(edit);
             },
             child: SelectionGroup(
               copied: (_) =>
-                  '(${[statusChars[status], ...task.details].join('|')})',
+                  '(${['${statusChars[status]}$recurrence', ...task.details].join('|')})',
               child: Text(text, style: style),
             ),
           ),

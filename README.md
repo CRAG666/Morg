@@ -140,8 +140,12 @@ Long-press a **heading icon** or a **list bullet**, or the empty space to its le
 | ⋮ → **Delete note** in a note, or long-press a file in the file browser | Deletes the note after confirming; **Undo** in the notice restores it with the same content |
 | ⋮ in the file browser | **Journal for a date…** and **Workspace summary**, which writes `summary.norg` with every note grouped by `categories:` |
 
-Dates use the Norg timestamp format from the specification: `(< Sat, 29 Oct 2026)` is a due date,
-`(> …)` a start date and `(@ …)` a timestamp; ISO dates like `2026-10-29` work too.
+Dates use the Norg timestamp format from the specification: `(< Sat, 29 Oct 2026)` is a due date, `(> …)` a start
+date, `(@ …)` a timestamp and `(+ 5th Jan)` a recurring task (yearly without a year, monthly with only a day, weekly
+with only a weekday). Any field can be left out, names can be abbreviated while unambiguous, ranges like `5th - 20th
+August 2022` complete the shorter side, time and `GMT` are understood, Spanish month and day names work too, and ISO
+dates like `2026-10-29` are accepted. Items with a date but no state, and inline timestamps such as `{@ 5th May}`,
+also appear in the agenda.
 
 ## Configuration
 

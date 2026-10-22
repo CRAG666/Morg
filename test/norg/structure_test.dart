@@ -62,9 +62,34 @@ void main() {
     expect(progressLabel((1, 2)), '[1/2] (50%)');
   });
 
+  final today = DateTime(2026, 10, 22);
+
   test('tasks carry their dates and priority', () {
-    final tasks = tasksOf(parseNorg('- (!|# A|< 2026-11-03) call')).single;
-    expect(tasks.priority, 'A');
-    expect(tasks.date('<', defaultYear: 2026), DateTime(2026, 11, 3));
+    final task = tasksOf(parseNorg('- (!|# A|< 2026-11-03) call')).single;
+    expect(task.priority, 'A');
+    expect(task.date('<', today: today), DateTime(2026, 11, 3));
+  });
+
+  test('a recurrence keeps its date and repeats', () {
+    final task = tasksOf(parseNorg('- (+ 5th Jan) birthday')).single;
+    expect(task.status, TodoStatus.recurring);
+    expect(task.recurrence, '5th Jan');
+    expect(task.date('+', today: today), DateTime(2027, 1, 5));
+  });
+
+  test('dated items without a status are listed, plain ones are not', () {
+    final entries = tasksOf(
+      parseNorg('- (< Tue 5th Feb) due\n- (# A) only priority\n- plain'),
+    );
+    expect(entries.map((entry) => (entry.title, entry.status)), [
+      ('due', null),
+    ]);
+  });
+
+  test('inline timestamps become dated entries', () {
+    final entry = tasksOf(parseNorg("Frank's birthday is on {@ 5th May}."))
+        .single;
+    expect(entry.title, "Frank's birthday is on 5th May.");
+    expect(entry.date('@', today: today), DateTime(2026, 5, 5));
   });
 }

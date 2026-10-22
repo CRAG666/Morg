@@ -502,4 +502,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refresh => 'Refresh';
+
+  @override
+  String repeatsOn(String date) {
+    return 'Repeats $date';
+  }
 }

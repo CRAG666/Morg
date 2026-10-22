@@ -973,6 +973,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refresh'**
   String get refresh;
+
+  /// No description provided for @repeatsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats {date}'**
+  String repeatsOn(String date);
 }
 
 class _AppLocalizationsDelegate

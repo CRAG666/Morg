@@ -145,5 +145,6 @@
   "deleteNoteBody": "El archivo se borra de {location}. Puedes deshacerlo justo después.",
   "noteDeleted": "{name} eliminada",
   "deleteFailed": "No se pudo eliminar: {error}",
-  "refresh": "Actualizar"
+  "refresh": "Actualizar",
+  "repeatsOn": "Se repite {date}"
 }
