@@ -35,8 +35,17 @@ jobs:
 
       - name: Build the APK
         run: |
-          flutter build apk --release
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64 \
+            --split-debug-info=build/debug-info
           mv build/app/outputs/flutter-apk/app-release.apk "Morg-$GITHUB_REF_NAME.apk"
+
+      - name: Keep the debug symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-info-${{ github.ref_name }}
+          path: build/debug-info
+          retention-days: 90
 
       - name: Publish the release
         env:

@@ -68,9 +68,9 @@
 
 ## Install
 
-Download `Morg-vX.Y.Z.apk` from the [latest release](https://github.com/CRAG666/Morg/releases/latest). It works
-on every Android architecture, and new releases are signed with the same key, so they install over the previous
-version.
+Download `Morg-vX.Y.Z.apk` from the [latest release](https://github.com/CRAG666/Morg/releases/latest) (about 20 MB).
+It runs on every ARM phone, 64-bit and 32-bit; x86_64 emulators and Chromebooks are not included, to keep it small.
+New releases are signed with the same key, so they install over the previous version.
 
 On first launch grant **File access** if you keep your notes in a regular folder (Syncthing, local storage), then
 tap **Add workspace** and choose the folder. Cloud folders work without that permission.
