@@ -10,15 +10,24 @@ import 'package:path/path.dart' as p;
 export 'saf_store_stub.dart' if (dart.library.io) 'saf_store.dart';
 
 class NoteEntry {
-  const NoteEntry(this.path, {required this.isDirectory});
+  const NoteEntry(
+    this.path, {
+    required this.isDirectory,
+    this.modified,
+    this.size,
+  });
 
   final String path;
   final bool isDirectory;
+  final int? modified;
+  final int? size;
 
   String get name => p.posix.basename(path);
 }
 
 abstract interface class NoteStore {
+  String get id;
+
   String get location;
 
   Future<List<NoteEntry>> list(String directory);
@@ -67,6 +76,9 @@ class LocalStore implements NoteStore {
   final Directory root;
 
   @override
+  String get id => 'local:${p.canonicalize(root.path)}';
+
+  @override
   String get location => root.path;
 
   File _file(String path) => File(p.join(root.path, path));
@@ -74,10 +86,13 @@ class LocalStore implements NoteStore {
   @override
   Future<List<NoteEntry>> list(String directory) async => [
     await for (final entity in Directory(p.join(root.path, directory)).list())
-      NoteEntry(
-        p.relative(entity.path, from: root.path),
-        isDirectory: entity is Directory,
-      ),
+      if (await entity.stat() case final stat)
+        NoteEntry(
+          p.relative(entity.path, from: root.path),
+          isDirectory: stat.type == FileSystemEntityType.directory,
+          modified: stat.modified.millisecondsSinceEpoch,
+          size: stat.size,
+        ),
   ];
 
   @override
@@ -113,6 +128,9 @@ class MemoryStore implements NoteStore {
         for (final MapEntry(:key, :value) in files.entries)
           key: utf8.encode(value),
       };
+
+  @override
+  String get id => 'memory:$location';
 
   @override
   final String location;

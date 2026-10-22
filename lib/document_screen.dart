@@ -69,7 +69,6 @@ class _DocumentScreenState extends State<DocumentScreen> {
   final _undo = <String>[];
   final _redo = <String>[];
   final _view = GlobalKey<NorgDocumentViewState>();
-  List<String> _files = const [];
   late MorgConfig _config;
 
   @override
@@ -82,14 +81,26 @@ class _DocumentScreenState extends State<DocumentScreen> {
   void initState() {
     super.initState();
     _load();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFiles());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareIndex());
   }
 
-  Future<void> _loadFiles() async {
-    final workspace = _workspaces.containing(widget.note);
-    if (workspace == null) return;
-    final files = await norgFiles(workspace.store);
-    if (mounted) setState(() => _files = files);
+  late final WorkspaceIndex? _index = switch (_workspaces.containing(
+    widget.note,
+  )) {
+    final workspace? => WorkspaceIndex.of(workspace.store),
+    null => null,
+  };
+
+  Future<void> _prepareIndex() async {
+    final index = _index;
+    if (index == null) return;
+    await index.load();
+    if (index.notes.value != null) return;
+    try {
+      await index.refresh();
+    } on FileSystemException {
+      return;
+    }
   }
 
   List<String> _completions(String query) {
@@ -99,7 +110,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final candidates = [
       if (!prefix.startsWith(':')) ..._targets.locations,
       if (prefix.isEmpty || prefix.startsWith(':'))
-        for (final file in _files) ':\$/${p.posix.withoutExtension(file)}:',
+        for (final note in _index?.notes.value ?? const <IndexedNote>[])
+          ':\$/${p.posix.withoutExtension(note.ref.path)}:',
     ];
     return [
       for (final candidate in candidates)
@@ -112,17 +124,20 @@ class _DocumentScreenState extends State<DocumentScreen> {
   Future<void> _load() async {
     try {
       final note = widget.note;
-      final source = await note.store.read(note.path);
-      if (!mounted) return;
-      setState(() {
-        _source = source;
-        _blocks = parseNorg(source);
-        _targets = DocumentTargets(_blocks);
-        _error = null;
-      });
+      _show(await note.store.read(note.path));
     } on FileSystemException catch (error) {
       if (mounted) setState(() => _error = error);
     }
+  }
+
+  void _show(String source) {
+    if (!mounted) return;
+    setState(() {
+      _source = source;
+      _blocks = parseNorg(source);
+      _targets = DocumentTargets(_blocks);
+      _error = null;
+    });
   }
 
   Future<void> _write(String edited, {bool record = true}) async {
@@ -131,13 +146,15 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final source = record && previous != null && _config.formatOnEdit
         ? reindentChanges(previous, edited, dedentExcess: _config.dedentExcess)
         : edited;
-    await note.store.write(note.path, touchUpdated(source, DateTime.now()));
+    final written = touchUpdated(source, DateTime.now());
+    await note.store.write(note.path, written);
+    WorkspaceIndex.peek(note.store)?.updated(note.path, written);
     if (record && previous != null) {
       _undo.add(previous);
       if (_undo.length > _historyLimit) _undo.removeAt(0);
       _redo.clear();
     }
-    await _load();
+    _show(written);
   }
 
   Future<void> _step(List<String> from, List<String> to) async {

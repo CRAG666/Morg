@@ -31,6 +31,9 @@ class SafStore extends _WebUnsupportedStore {
   final String treeUri;
 
   @override
+  String get id => 'saf:$treeUri';
+
+  @override
   String get location => treeUri;
 }
 
@@ -39,6 +42,9 @@ class SafFileStore extends _WebUnsupportedStore {
 
   final String fileUri;
   final String fileName;
+
+  @override
+  String get id => 'saf-file:$fileUri';
 
   @override
   String get location => fileName;

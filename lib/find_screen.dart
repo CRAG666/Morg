@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'document_screen.dart';
@@ -10,7 +12,7 @@ import 'workspace/index.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 
-enum FindTab { search, tasks, agenda }
+enum FindTab { search, agenda, tasks }
 
 const _statusOrder = [
   TodoStatus.urgent,
@@ -82,9 +84,15 @@ class FindScreen extends StatefulWidget {
 }
 
 class _FindScreenState extends State<FindScreen> {
-  late Future<List<IndexedNote>> _notes = indexNotes(widget.workspace.store);
+  late final _index = WorkspaceIndex.of(widget.workspace.store);
   final _query = TextEditingController();
   final _statuses = {..._statusOrder}..removeAll(_closed);
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
 
   @override
   void dispose() {
@@ -92,33 +100,37 @@ class _FindScreenState extends State<FindScreen> {
     super.dispose();
   }
 
-  void _refresh() => setState(() {
-    _notes = indexNotes(widget.workspace.store);
-  });
-
-  Future<void> _open(IndexedNote note, int line) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DocumentScreen(note: note.ref, initialLine: line),
-      ),
-    );
-    if (mounted) _refresh();
+  Future<void> _refresh({bool force = false}) async {
+    try {
+      await _index.refresh(force: force);
+    } on FileSystemException catch (error) {
+      if (!mounted) return;
+      _notify(
+        context.l10n.couldNotReadAt(widget.workspace.store.location, '$error'),
+      );
+    }
   }
 
+  void _notify(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _open(IndexedNote note, int line) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => DocumentScreen(note: note.ref, initialLine: line),
+    ),
+  );
+
   Future<void> _edit(IndexedNote note, SourceEdit edit) async {
+    final source = touchUpdated(edit(note.source), DateTime.now());
     try {
-      await note.ref.store.write(
-        note.ref.path,
-        touchUpdated(edit(note.source), DateTime.now()),
-      );
-    } on Exception catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.saveFailed('$error'))),
-        );
-      }
+      await note.ref.store.write(note.ref.path, source);
+      _index.updated(note.ref.path, source);
+    } on FileSystemException catch (error) {
+      if (mounted) _notify(context.l10n.saveFailed('$error'));
     }
-    if (mounted) _refresh();
   }
 
   @override
@@ -143,31 +155,47 @@ class _FindScreenState extends State<FindScreen> {
               icon: const Icon(Icons.clear),
               onPressed: () => setState(_query.clear),
             ),
-        ],
-        bottom: TabBar(
-          tabs: [
-            Tab(text: context.l10n.search),
-            Tab(text: context.l10n.tasks),
-            Tab(text: context.l10n.agenda),
-          ],
-        ),
-      ),
-      body: FutureBuilder(
-        future: _notes,
-        builder: (context, snapshot) => switch (snapshot) {
-          AsyncSnapshot(:final error?) => Center(
-            child: Text(
-              context.l10n.couldNotReadAt(
-                widget.workspace.store.location,
-                '$error',
-              ),
+          ValueListenableBuilder(
+            valueListenable: _index.refreshing,
+            builder: (context, refreshing, _) => IconButton(
+              tooltip: context.l10n.refresh,
+              icon: const Icon(Icons.sync),
+              onPressed: refreshing ? null : () => _refresh(force: true),
             ),
           ),
-          AsyncSnapshot(data: final notes?) => TabBarView(
-            children: [_searchResults(notes), _taskList(notes), _agenda(notes)],
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(kTextTabBarHeight + 2),
+          child: Column(
+            children: [
+              TabBar(
+                tabs: [
+                  Tab(text: context.l10n.search),
+                  Tab(text: context.l10n.agenda),
+                  Tab(text: context.l10n.tasks),
+                ],
+              ),
+              ValueListenableBuilder(
+                valueListenable: _index.refreshing,
+                builder: (context, refreshing, _) => refreshing
+                    ? const LinearProgressIndicator(minHeight: 2)
+                    : const SizedBox(height: 2),
+              ),
+            ],
           ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
+        ),
+      ),
+      body: ValueListenableBuilder(
+        valueListenable: _index.notes,
+        builder: (context, notes, _) => notes == null
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _searchResults(notes),
+                  _agenda(notes),
+                  _taskList(notes),
+                ],
+              ),
       ),
     ),
   );

@@ -7,6 +7,7 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  crypto: ^3.0.7
   file_picker: ^13.1.0
   flutter:
     sdk: flutter
@@ -19,6 +20,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   permission_handler: ^13.0.2
+  pool: ^1.5.3
   re_highlight: ^0.0.3
   saf_stream: ^4.0.2
   saf_util: ^3.1.1

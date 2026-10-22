@@ -104,8 +104,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   Future<void> _summary() async {
     final l10n = context.l10n;
+    final index = WorkspaceIndex.of(_store);
+    await index.refresh();
     final summary = workspaceSummary(
-      await indexNotes(_store),
+      index.notes.value ?? const [],
       uncategorized: l10n.uncategorized,
     );
     if (await _store.exists(_summaryFile)) {

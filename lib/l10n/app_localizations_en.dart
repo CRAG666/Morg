@@ -499,4 +499,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String deleteFailed(String error) {
     return 'Could not delete: $error';
   }
+
+  @override
+  String get refresh => 'Refresh';
 }

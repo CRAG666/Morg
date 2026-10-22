@@ -500,4 +500,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String deleteFailed(String error) {
     return 'No se pudo eliminar: $error';
   }
+
+  @override
+  String get refresh => 'Actualizar';
 }

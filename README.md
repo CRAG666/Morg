@@ -133,7 +133,7 @@ Long-press a **heading icon** or a **list bullet**, or the empty space to its le
 
 | Where | What it does |
 |---|---|
-| **Search** in a note or in the file browser | Searches every note (lowercase ignores case, `a\|b` matches either), shows the **Tasks** of the workspace filtered by state, and the **Agenda** of dated tasks: overdue first, then by day |
+| **Search** in a note or in the file browser | Searches every note (lowercase ignores case, `a\|b` matches either), shows the **Agenda** of dated tasks (overdue first, then by day) and the **Tasks** of the workspace filtered by state. Results come instantly from an index kept on the phone; only notes that changed since the last scan are read again (the bar under the tabs shows it), and **Refresh** rescans on demand |
 | **Agenda** in the file browser | Opens the agenda directly |
 | ⋮ in a note | **New note** (in the workspace root, like `core.dirman`; type `folder/name` for a subfolder), **Journal** of today or of any date, the previous or next day when the note is a journal entry, and **Export to Markdown** |
 | **+** in the file browser (⋮ → **Browse files**) | **New note** in the folder you are browsing |

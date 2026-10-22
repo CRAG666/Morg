@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'l10n/l10n.dart';
 import 'norg/edits.dart';
 import 'prompt_dialog.dart';
 import 'settings.dart';
+import 'workspace/index.dart';
 import 'workspace/store.dart';
 
 String _two(int value) => value.toString().padLeft(2, '0');
@@ -61,11 +63,11 @@ Future<void> createNote(
   required String author,
   String? contents,
 }) async {
-  await ref.store.write(
-    ref.path,
-    contents ??
-        metadataTemplate(title: ref.name, author: author, now: DateTime.now()),
-  );
+  final source =
+      contents ??
+      metadataTemplate(title: ref.name, author: author, now: DateTime.now());
+  await ref.store.write(ref.path, source);
+  WorkspaceIndex.peek(ref.store)?.updated(ref.path, source);
   noteChanges.value++;
 }
 
@@ -117,6 +119,7 @@ Future<bool> deleteNote(BuildContext context, NoteRef ref) async {
   try {
     final bytes = await ref.store.readBytes(ref.path);
     await ref.store.delete(ref.path);
+    WorkspaceIndex.peek(ref.store)?.removed(ref.path);
     noteChanges.value++;
     messenger
       ..hideCurrentSnackBar()
@@ -127,6 +130,8 @@ Future<bool> deleteNote(BuildContext context, NoteRef ref) async {
             label: l10n.undo,
             onPressed: () async {
               await ref.store.writeBytes(ref.path, bytes);
+              WorkspaceIndex.peek(ref.store)
+                  ?.updated(ref.path, utf8.decode(bytes, allowMalformed: true));
               noteChanges.value++;
             },
           ),

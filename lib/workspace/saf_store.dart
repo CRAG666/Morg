@@ -13,9 +13,16 @@ const _norgMime = 'application/octet-stream';
 class SafStore implements NoteStore {
   SafStore(this.treeUri);
 
+  static final _documents = <String, Map<String, String>>{};
+
   final String treeUri;
   final _util = SafUtil();
   final _stream = SafStream();
+
+  Map<String, String> get _known => _documents.putIfAbsent(treeUri, () => {});
+
+  @override
+  String get id => 'saf:$treeUri';
 
   @override
   String get location => Uri.decodeComponent(treeUri.split('/').last);
@@ -26,24 +33,32 @@ class SafStore implements NoteStore {
   Future<String> _uri(String path) async {
     final segments = _segments(path);
     if (segments.isEmpty) return treeUri;
+    final key = p.posix.joinAll(segments);
+    if (_known[key] case final uri?) return uri;
     final document = await _util.child(treeUri, segments);
     if (document == null) {
       throw FileSystemException('Not found in the cloud folder', path);
     }
-    return document.uri;
+    return _known[key] = document.uri;
   }
 
   @override
-  Future<List<NoteEntry>> list(String directory) => _saf(
-    directory,
-    () async => [
-      for (final document in await _util.list(await _uri(directory)))
+  Future<List<NoteEntry>> list(String directory) => _saf(directory, () async {
+    final entries = <NoteEntry>[];
+    for (final document in await _util.list(await _uri(directory))) {
+      final path = p.posix.normalize(p.posix.join(directory, document.name));
+      _known[path] = document.uri;
+      entries.add(
         NoteEntry(
-          p.posix.join(directory, document.name),
+          path,
           isDirectory: document.isDir,
+          modified: document.lastModified,
+          size: document.length,
         ),
-    ],
-  );
+      );
+    }
+    return entries;
+  });
 
   @override
   Future<bool> exists(String path) => _saf(path, () async {
@@ -71,8 +86,10 @@ class SafStore implements NoteStore {
   });
 
   @override
-  Future<void> delete(String path) =>
-      _saf(path, () async => _util.delete(await _uri(path), false));
+  Future<void> delete(String path) => _saf(path, () async {
+    await _util.delete(await _uri(path), false);
+    _known.remove(p.posix.normalize(path));
+  });
 
   @override
   Future<void> openExternally(String path) => _saf(path, () async {
@@ -99,6 +116,9 @@ class SafFileStore implements NoteStore {
   final String fileName;
   final _stream = SafStream();
   final _util = SafUtil();
+
+  @override
+  String get id => 'saf-file:$fileUri';
 
   @override
   String get location => fileName;

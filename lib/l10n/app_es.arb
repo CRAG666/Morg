@@ -144,5 +144,6 @@
   "deleteNoteQuestion": "¿Eliminar {name}?",
   "deleteNoteBody": "El archivo se borra de {location}. Puedes deshacerlo justo después.",
   "noteDeleted": "{name} eliminada",
-  "deleteFailed": "No se pudo eliminar: {error}"
+  "deleteFailed": "No se pudo eliminar: {error}",
+  "refresh": "Actualizar"
 }
