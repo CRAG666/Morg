@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'editor_screen.dart';
 import 'l10n/l10n.dart';
-import 'prompt_dialog.dart';
+import 'dialogs.dart';
 import 'settings.dart';
 import 'theme_toggle.dart';
 
@@ -15,10 +15,6 @@ const _dirman = ['load', 'core.dirman', 'config'];
 const _journal = ['load', 'core.journal', 'config'];
 const _indent = ['load', 'core.esupports.indent', 'config'];
 
-void _notify(BuildContext context, String message) =>
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-
 Future<void> _apply(
   BuildContext context,
   Future<void> Function() change,
@@ -26,7 +22,7 @@ Future<void> _apply(
   try {
     await change();
   } on Exception catch (error) {
-    if (context.mounted) _notify(context, context.l10n.saveFailed('$error'));
+    if (context.mounted) context.notify((l10n) => l10n.saveFailed('$error'));
   }
 }
 
@@ -43,30 +39,19 @@ class SettingsScreen extends StatelessWidget {
     if (file == null) return;
     try {
       final result = await apply(utf8.decode(await file.readAsBytes()));
-      if (context.mounted) _notify(context, success(context.l10n, result));
+      if (context.mounted) context.notify((l10n) => success(l10n, result));
     } on Exception catch (error) {
-      if (context.mounted) _notify(context, context.l10n.invalidFile('$error'));
+      if (context.mounted) context.notify((l10n) => l10n.invalidFile('$error'));
     }
   }
 
   Future<void> _reset(BuildContext context) async {
     final controller = MorgSettingsScope.controllerOf(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.resetConfigTitle),
-        content: Text(context.l10n.resetConfigBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.reset),
-          ),
-        ],
-      ),
+    final confirmed = await confirm(
+      context,
+      title: context.l10n.resetConfigTitle,
+      content: context.l10n.resetConfigBody,
+      accept: context.l10n.reset,
     );
     if (confirmed ?? false) await controller.reset();
   }

@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'store.dart';
 
 abstract class _WebUnsupportedStore implements NoteStore {
+  @override
+  bool get persistent => true;
+
   Never _unsupported() =>
       throw UnsupportedError('Cloud folders are only available on Android');
-
-  @override
-  Future<List<NoteEntry>> list(String directory) => _unsupported();
 
   @override
   Future<bool> exists(String path) => _unsupported();
@@ -25,7 +25,7 @@ abstract class _WebUnsupportedStore implements NoteStore {
   Future<void> openExternally(String path) => _unsupported();
 }
 
-class SafStore extends _WebUnsupportedStore {
+class SafStore extends _WebUnsupportedStore implements NoteFolder {
   SafStore(this.treeUri);
 
   final String treeUri;
@@ -36,7 +36,23 @@ class SafStore extends _WebUnsupportedStore {
   @override
   String get location => treeUri;
 
+  @override
+  bool get remote => true;
+
+  @override
+  bool get missing => false;
+
+  @override
   Future<String> label() => _unsupported();
+
+  @override
+  Future<bool> isReachable() => _unsupported();
+
+  @override
+  Future<void> release() => _unsupported();
+
+  @override
+  Future<List<NoteEntry>> list(String directory) => _unsupported();
 }
 
 class SafFileStore extends _WebUnsupportedStore {

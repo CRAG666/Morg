@@ -50,3 +50,33 @@ class _PromptDialogState extends State<PromptDialog> {
     ],
   );
 }
+
+Future<bool?> confirm(
+  BuildContext context, {
+  String? title,
+  required String content,
+  required String accept,
+  String? cancel,
+}) => showDialog<bool>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: title == null ? null : Text(title),
+    content: Text(content),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: Text(cancel ?? context.l10n.cancel),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, true),
+        child: Text(accept),
+      ),
+    ],
+  ),
+);
+
+extension Notify on BuildContext {
+  void notify(String Function(AppLocalizations l10n) message) =>
+      ScaffoldMessenger.of(this)
+          .showSnackBar(SnackBar(content: Text(message(l10n))));
+}

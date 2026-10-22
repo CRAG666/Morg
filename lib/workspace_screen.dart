@@ -9,6 +9,7 @@ import 'theme_toggle.dart';
 import 'workspace/index.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
+import 'dialogs.dart';
 import 'l10n/l10n.dart';
 
 enum _WorkspaceMenu { journalDate, summary }
@@ -32,7 +33,7 @@ class WorkspaceScreen extends StatefulWidget {
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
   late Future<List<NoteEntry>> _entries = _list();
 
-  NoteStore get _store => widget.workspace.store;
+  NoteFolder get _store => widget.workspace.store;
 
   bool get _isRoot => widget.directory.isEmpty;
 
@@ -112,21 +113,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     );
     if (await _store.exists(_summaryFile)) {
       if (!mounted) return;
-      final replace = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          content: Text(l10n.replaceFileQuestion(_summaryFile)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(l10n.replace),
-            ),
-          ],
-        ),
+      final replace = await confirm(
+        context,
+        content: l10n.replaceFileQuestion(_summaryFile),
+        accept: l10n.replace,
       );
       if (!(replace ?? false)) return;
     }

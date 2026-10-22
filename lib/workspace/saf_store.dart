@@ -11,7 +11,7 @@ import 'store.dart';
 const _norgMime = 'application/octet-stream';
 const _providers = {'com.google.android.apps.docs.storage': 'Google Drive'};
 
-class SafStore implements NoteStore {
+class SafStore implements NoteFolder {
   SafStore(this.treeUri);
 
   static final _documents = <String, Map<String, String>>{};
@@ -31,6 +31,24 @@ class SafStore implements NoteStore {
       _providers[Uri.parse(treeUri).authority] ??
       Uri.decodeComponent(treeUri.split('/').last);
 
+  @override
+  bool get persistent => true;
+
+  @override
+  bool get remote => true;
+
+  @override
+  bool get missing => false;
+
+  @override
+  Future<bool> isReachable() =>
+      _util.hasPersistedPermission(treeUri, checkWrite: true);
+
+  @override
+  Future<void> release() =>
+      _util.releasePersistedPermission(treeUri, write: true);
+
+  @override
   Future<String> label() => _labels.putIfAbsent(treeUri, () async {
     final folder = await _saf(treeUri, () => _util.stat(treeUri, true));
     final provider = _providers[Uri.parse(treeUri).authority];
@@ -131,6 +149,9 @@ class SafFileStore implements NoteStore {
   String get id => 'saf-file:$fileUri';
 
   @override
+  bool get persistent => true;
+
+  @override
   String get location => fileName;
 
   void _check(String path) {
@@ -138,10 +159,6 @@ class SafFileStore implements NoteStore {
       throw FileSystemException('Only $fileName was opened', path);
     }
   }
-
-  @override
-  Future<List<NoteEntry>> list(String directory) =>
-      throw UnsupportedError('A single opened file has no folder');
 
   @override
   Future<bool> exists(String path) async => path == fileName;

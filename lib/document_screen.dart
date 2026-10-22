@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'edit_history.dart';
 import 'editor_screen.dart';
 import 'find_screen.dart';
 import 'norg/ast.dart';
@@ -15,16 +16,18 @@ import 'norg/indent.dart';
 import 'norg/markdown.dart';
 import 'norg/parser.dart';
 import 'norg/targets.dart';
+import 'heading_outline.dart';
 import 'norg_view.dart';
 import 'notes.dart';
 import 'settings.dart';
+import 'svg_image.dart';
 import 'workspace/index.dart';
 import 'workspace/store.dart';
 import 'workspace/workspace.dart';
 import 'workspace_screen.dart';
+import 'dialogs.dart';
 import 'l10n/l10n.dart';
 
-const _historyLimit = 100;
 final _queryPrefix = RegExp(r'^([*#$^:/]+)\s*');
 
 enum _DocumentAction {
@@ -66,8 +69,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   List<Block> _blocks = const [];
   DocumentTargets _targets = DocumentTargets(const []);
   Object? _error;
-  final _undo = <String>[];
-  final _redo = <String>[];
+  final _history = EditHistory();
   final _view = GlobalKey<NorgDocumentViewState>();
   late MorgConfig _config;
 
@@ -149,25 +151,23 @@ class _DocumentScreenState extends State<DocumentScreen> {
     final written = touchUpdated(source, DateTime.now());
     await note.store.write(note.path, written);
     WorkspaceIndex.peek(note.store)?.updated(note.path, written);
-    if (record && previous != null) {
-      _undo.add(previous);
-      if (_undo.length > _historyLimit) _undo.removeAt(0);
-      _redo.clear();
-    }
+    if (record && previous != null) _history.record(previous);
     _show(written);
   }
 
-  Future<void> _step(List<String> from, List<String> to) async {
-    if (from.isEmpty || _source == null) return;
-    to.add(_source!);
-    await _guarded(() => _write(from.removeLast(), record: false));
+  Future<void> _restore(String? Function(String current) step) async {
+    final source = _source;
+    if (source == null) return;
+    if (step(source) case final restored?) {
+      await _guarded(() => _write(restored, record: false));
+    }
   }
 
   Future<void> _guarded(Future<void> Function() action) async {
     try {
       await action();
     } on FileSystemException catch (error) {
-      _notify((l10n) => l10n.saveFailed('$error'));
+      if (mounted) context.notify((l10n) => l10n.saveFailed('$error'));
     }
   }
 
@@ -193,7 +193,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
           content: Text(notice),
           action: SnackBarAction(
             label: context.l10n.undo,
-            onPressed: () => _step(_undo, _redo),
+            onPressed: () => _restore(_history.undo),
           ),
         ),
       );
@@ -202,17 +202,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
   Workspaces get _workspaces =>
       Workspaces.of(MorgSettingsScope.of(context).config);
 
-  void _notify(String Function(AppLocalizations l10n) message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message(context.l10n))));
-  }
-
   Future<void> _openLink(String target) async {
     try {
       await _followTarget(_workspaces.resolve(target, from: widget.note));
     } on FileSystemException catch (error) {
-      _notify((l10n) => l10n.couldNotOpenBecause(target, '$error'));
+      if (mounted) {
+        context.notify((l10n) => l10n.couldNotOpenBecause(target, '$error'));
+      }
     }
   }
 
@@ -222,7 +218,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
         await openWithSystem(uri.toFilePath());
       case UrlTarget(:final uri):
         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-          _notify((l10n) => l10n.couldNotOpen('$uri'));
+          if (mounted) context.notify((l10n) => l10n.couldNotOpen('$uri'));
         }
       case NorgFileTarget(:final ref, :final location):
         if (!await ref.store.exists(ref.path) && !await _confirmCreate(ref)) {
@@ -239,31 +235,18 @@ class _DocumentScreenState extends State<DocumentScreen> {
       case ExternalFileTarget(:final ref):
         await ref.store.openExternally(ref.path);
       case LocalTarget(:final location):
-        _notify((l10n) => l10n.notFound(location));
+        context.notify((l10n) => l10n.notFound(location));
       case UnsupportedTarget(:final target):
-        _notify((l10n) => l10n.unsupportedLink(target));
+        context.notify((l10n) => l10n.unsupportedLink(target));
     }
   }
 
   Future<bool> _confirmCreate(NoteRef ref) async {
-    final create = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.noteMissingTitle),
-        content: Text(
-          context.l10n.createNoteQuestion(ref.path, ref.store.location),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.create),
-          ),
-        ],
-      ),
+    final create = await confirm(
+      context,
+      title: context.l10n.noteMissingTitle,
+      content: context.l10n.createNoteQuestion(ref.path, ref.store.location),
+      accept: context.l10n.create,
     );
     if (!(create ?? false) || !mounted) return false;
     await createNote(ref, author: MorgSettingsScope.of(context).config.author);
@@ -315,7 +298,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
       mimeType: 'text/markdown',
       dialogTitle: context.l10n.exportMarkdown,
     );
-    if (saved != null) _notify((l10n) => l10n.exported);
+    if (saved != null && mounted) context.notify((l10n) => l10n.exported);
   }
 
   Future<void> _act(_DocumentAction action, Workspace? workspace) async {
@@ -384,12 +367,12 @@ class _DocumentScreenState extends State<DocumentScreen> {
         actions: [
           IconButton(
             tooltip: l10n.undo,
-            onPressed: _undo.isEmpty ? null : () => _step(_undo, _redo),
+            onPressed: _history.canUndo ? () => _restore(_history.undo) : null,
             icon: const Icon(Icons.undo),
           ),
           IconButton(
             tooltip: l10n.redo,
-            onPressed: _redo.isEmpty ? null : () => _step(_redo, _undo),
+            onPressed: _history.canRedo ? () => _restore(_history.redo) : null,
             icon: const Icon(Icons.redo),
           ),
           if (workspace != null)
@@ -462,7 +445,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
                   _DocumentAction.delete,
                   Icons.delete_outline,
                   l10n.deleteNote,
-                  editable && widget.note.store is! MemoryStore,
+                  editable && widget.note.store.persistent,
                 ),
               ])
                 if (enabled)

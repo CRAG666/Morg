@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import 'dialogs.dart';
 import 'l10n/l10n.dart';
 import 'source_editor.dart';
 
@@ -40,34 +43,20 @@ class _EditorScreenState extends State<EditorScreen> {
     try {
       await widget.onSave(source);
       setState(() => _saved = source);
-    } on Exception catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.saveFailed('$error'))),
-        );
-      }
+    } on FileSystemException catch (error) {
+      if (mounted) context.notify((l10n) => l10n.saveFailed('$error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _confirmDiscard() async {
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.unsavedChangesTitle),
-        content: Text(context.l10n.discardChangesQuestion),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.keepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.discard),
-          ),
-        ],
-      ),
+    final discard = await confirm(
+      context,
+      title: context.l10n.unsavedChangesTitle,
+      content: context.l10n.discardChangesQuestion,
+      accept: context.l10n.discard,
+      cancel: context.l10n.keepEditing,
     );
     if ((discard ?? false) && mounted) Navigator.of(context).pop();
   }

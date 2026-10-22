@@ -29,7 +29,7 @@ class Workspace {
   const Workspace(this.name, this.store);
 
   final String name;
-  final NoteStore store;
+  final NoteFolder store;
 }
 
 String userHome() => kIsWeb
@@ -81,16 +81,14 @@ class Workspaces {
 
   NoteRef local(String absolutePath) {
     NoteRef? best;
+    var bestRoot = -1;
     for (final Workspace(:store) in all.values) {
-      if (store is! LocalStore) continue;
-      final root = store.root.path;
-      final inside =
-          p.equals(root, absolutePath) || p.isWithin(root, absolutePath);
-      final isLonger =
-          best == null ||
-          root.length > (best.store as LocalStore).root.path.length;
-      if (inside && isLonger) {
-        best = NoteRef(store, p.relative(absolutePath, from: root));
+      if (store case LocalStore(:final root)
+          when root.path.length > bestRoot &&
+              (p.equals(root.path, absolutePath) ||
+                  p.isWithin(root.path, absolutePath))) {
+        best = NoteRef(store, p.relative(absolutePath, from: root.path));
+        bestRoot = root.path.length;
       }
     }
     return best ??

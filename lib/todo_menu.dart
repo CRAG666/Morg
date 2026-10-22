@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'document_style.dart';
 import 'l10n/l10n.dart';
 import 'norg/ast.dart';
 import 'norg/edits.dart';
@@ -27,14 +28,9 @@ String todoLabel(AppLocalizations l10n, TodoStatus status) => switch (status) {
   TodoStatus.cancelled => l10n.todoCancelled,
 };
 
-TextStyle todoStyle(BuildContext context, TodoStatus? status) {
-  final theme = MorgSettingsScope.of(context).theme
-      .of(Theme.of(context).brightness);
-  final base = Theme.of(context).textTheme.bodyMedium!
-      .copyWith(color: theme.foreground);
-  return theme['@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}']
-      .apply(base);
-}
+TextStyle todoStyle(BuildContext context, TodoStatus? status) =>
+    DocumentStyle.of(context)
+        .group('@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}');
 
 String todoIcon(BuildContext context, TodoStatus status) =>
     '(${MorgSettingsScope.of(context).concealer.todoIcons[status]})';
@@ -49,12 +45,7 @@ Future<SourceEdit?> pickTaskEdit(
 }) async {
   final l10n = context.l10n;
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-  final painter = TextPainter(
-    text: TextSpan(text: 'MMMMM', style: todoStyle(context, status)),
-    textDirection: TextDirection.ltr,
-  )..layout();
-  final iconWidth = painter.width;
-  painter.dispose();
+  final iconWidth = textWidth('MMMMM', todoStyle(context, status));
   PopupMenuItem<Object> item(TodoStatus option) => PopupMenuItem(
     value: option,
     child: Row(

@@ -60,7 +60,7 @@ bool _ignored(NoteEntry entry) =>
     entry.name.startsWith('.') || entry.name.contains('.sync-conflict-');
 
 Future<List<NoteEntry>> _norgEntries(
-  NoteStore store,
+  NoteFolder store,
   Pool pool, [
   String directory = '',
 ]) async {
@@ -83,14 +83,14 @@ Future<List<NoteEntry>> _norgEntries(
 class WorkspaceIndex {
   WorkspaceIndex._(this.store);
 
-  factory WorkspaceIndex.of(NoteStore store) =>
+  factory WorkspaceIndex.of(NoteFolder store) =>
       _indexes.putIfAbsent(store.id, () => WorkspaceIndex._(store));
 
   static WorkspaceIndex? peek(NoteStore store) => _indexes[store.id];
 
   static final _indexes = <String, WorkspaceIndex>{};
 
-  final NoteStore store;
+  final NoteFolder store;
   final notes = ValueNotifier<List<IndexedNote>?>(null);
   final refreshing = ValueNotifier(false);
   final _byPath = SplayTreeMap<String, IndexedNote>();
@@ -184,7 +184,7 @@ class WorkspaceIndex {
   }
 
   Future<File?> _cacheFile() async {
-    if (kIsWeb || store is MemoryStore) return null;
+    if (kIsWeb || !store.persistent) return null;
     final directory = await getApplicationSupportDirectory();
     final name = sha1.convert(utf8.encode(store.id));
     return File(p.join(directory.path, 'index', '$name.json'));

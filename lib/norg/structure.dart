@@ -27,6 +27,13 @@ Iterable<Heading> headingsOf(List<Block> blocks) =>
 Heading? headingAt(List<Block> blocks, int line) =>
     headingsOf(blocks).where((heading) => heading.line == line).firstOrNull;
 
+ListItem? listItemAt(List<Block> blocks, int line) =>
+    walkBlocks(blocks)
+        .whereType<ListBlock>()
+        .expand((list) => list.items)
+        .where((item) => item.line == line)
+        .firstOrNull;
+
 int subtreeEnd(Block block) => switch (block) {
   Heading(:final children) => children.fold(
     block.range.end,

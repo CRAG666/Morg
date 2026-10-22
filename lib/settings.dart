@@ -44,38 +44,21 @@ class MorgConfig {
       throw const FormatException('The configuration must be a JSON object');
     }
     final modules = _object(json['load'], 'load');
-    final concealer = _object(
-      _object(modules['core.concealer'], 'core.concealer')['config'],
-      'core.concealer.config',
-    );
-    final dirman = _object(
-      _object(modules['core.dirman'], 'core.dirman')['config'],
-      'core.dirman.config',
-    );
+    Map<String, Object?> module(String name) =>
+        _object(_object(modules[name], name)['config'], '$name.config');
+    final dirman = module('core.dirman');
     final workspaces = _object(dirman['workspaces'], 'workspaces');
-    final metagen = _object(
-      _object(
-        modules['core.esupports.metagen'],
-        'core.esupports.metagen',
-      )['config'],
-      'core.esupports.metagen.config',
-    );
-    final journal = _object(
-      _object(modules['core.journal'], 'core.journal')['config'],
-      'core.journal.config',
-    );
-    final indent = _object(
-      _object(
-        modules['core.esupports.indent'],
-        'core.esupports.indent',
-      )['config'],
-      'core.esupports.indent.config',
-    );
-    final strategy = journal['strategy'] as String? ?? 'nested';
-    final author = metagen['author'] as String? ?? '';
+    final journal = module('core.journal');
+    final indent = module('core.esupports.indent');
+    String? text(Map<String, Object?> map, String key) =>
+        _optional<String>(map, key);
+    bool flag(Map<String, Object?> map, String key) =>
+        _optional<bool>(map, key) ?? true;
+    final strategy = text(journal, 'strategy') ?? 'nested';
+    final author = text(module('core.esupports.metagen'), 'author') ?? '';
     return MorgConfig(
       source: source,
-      themeName: json['theme'] as String? ?? 'eyes',
+      themeName: text(json, 'theme') ?? 'eyes',
       themeMode: switch (json['theme_mode']) {
         null || 'system' => ThemeMode.system,
         'light' => ThemeMode.light,
@@ -89,7 +72,7 @@ class MorgConfig {
         ),
         final other => throw FormatException('Unsupported language: $other'),
       },
-      concealer: ConcealerConfig.fromNeorg(concealer),
+      concealer: ConcealerConfig.fromNeorg(module('core.concealer')),
       workspaces: {
         for (final MapEntry(:key, :value) in workspaces.entries)
           key: value is String
@@ -98,23 +81,23 @@ class MorgConfig {
                   'The path of workspace "$key" must be a string',
                 ),
       },
-      defaultWorkspace: dirman['default_workspace'] as String?,
-      indexFile: dirman['index'] as String? ?? 'index.norg',
+      defaultWorkspace: text(dirman, 'default_workspace'),
+      indexFile: text(dirman, 'index') ?? 'index.norg',
       author: author.isNotEmpty
           ? author
           : kIsWeb
           ? 'morg'
           : Platform.environment['USER'] ?? 'morg',
-      journalFolder: journal['journal_folder'] as String? ?? 'journal',
+      journalFolder: text(journal, 'journal_folder') ?? 'journal',
       journalStrategy: switch (strategy) {
         'nested' => JournalStrategy.nested,
         'flat' => JournalStrategy.flat,
         _ => throw FormatException('Unsupported journal strategy: $strategy'),
       },
-      journalTemplate: journal['template_name'] as String? ?? 'template.norg',
-      useJournalTemplate: journal['use_template'] as bool? ?? true,
-      formatOnEdit: indent['format_on_escape'] as bool? ?? true,
-      dedentExcess: indent['dedent_excess'] as bool? ?? true,
+      journalTemplate: text(journal, 'template_name') ?? 'template.norg',
+      useJournalTemplate: flag(journal, 'use_template'),
+      formatOnEdit: flag(indent, 'format_on_escape'),
+      dedentExcess: flag(indent, 'dedent_excess'),
     );
   }
 
@@ -304,4 +287,12 @@ Map<String, Object?> _object(Object? value, String name) => switch (value) {
   null => const {},
   Map<String, Object?>() => value,
   _ => throw FormatException('"$name" must be an object'),
+};
+
+T? _optional<T>(Map<String, Object?> map, String key) => switch (map[key]) {
+  null => null,
+  final T value => value,
+  final other => throw FormatException(
+    '"$key" must be a ${T == bool ? 'boolean' : 'string'}, not $other',
+  ),
 };

@@ -11,7 +11,7 @@ import 'package:saf_util/saf_util.dart';
 
 import 'document_screen.dart';
 import 'notes.dart';
-import 'prompt_dialog.dart';
+import 'dialogs.dart';
 import 'settings.dart';
 import 'settings_screen.dart';
 import 'theme/norg_theme.dart';
@@ -169,11 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (name != null) await controller.setWorkspace(name, location);
   }
 
-  bool _isMissing(Workspace workspace) => switch (workspace.store) {
-    LocalStore(:final root) => !root.existsSync(),
-    _ => false,
-  };
-
   Future<Workspace?> _relocate(Workspace workspace) async {
     final controller = MorgSettingsScope.controllerOf(context);
     final store = workspace.store;
@@ -185,16 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Workspaces.of(controller.value.config).all[workspace.name];
   }
 
-  Future<Workspace?> _accessible(Workspace workspace) async {
-    final lostAccess = switch (workspace.store) {
-      SafStore(:final treeUri) => !await _saf.hasPersistedPermission(
-        treeUri,
-        checkWrite: true,
-      ),
-      _ => _isMissing(workspace),
-    };
-    return lostAccess ? _relocate(workspace) : workspace;
-  }
+  Future<Workspace?> _accessible(Workspace workspace) async =>
+      await workspace.store.isReachable() ? workspace : _relocate(workspace);
 
   Future<void> _openWorkspace(Workspace workspace) async {
     final target = await _accessible(workspace);
@@ -206,22 +193,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (!mounted) return;
-    final create = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.noIndexTitle(config.indexFile)),
-        content: Text(context.l10n.noIndexBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.browseFiles),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.create),
-          ),
-        ],
-      ),
+    final create = await confirm(
+      context,
+      title: context.l10n.noIndexTitle(config.indexFile),
+      content: context.l10n.noIndexBody,
+      accept: context.l10n.create,
+      cancel: context.l10n.browseFiles,
     );
     if (create == null || !mounted) return;
     if (create) {
@@ -298,27 +275,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _removeWorkspace(Workspace workspace) async {
     final controller = MorgSettingsScope.controllerOf(context);
-    final remove = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.removeWorkspace(workspace.name)),
-        content: Text(context.l10n.removeWorkspaceBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.remove),
-          ),
-        ],
-      ),
+    final remove = await confirm(
+      context,
+      title: context.l10n.removeWorkspace(workspace.name),
+      content: context.l10n.removeWorkspaceBody,
+      accept: context.l10n.remove,
     );
     if (!(remove ?? false)) return;
-    if (workspace.store case SafStore(:final treeUri)) {
-      await _saf.releasePersistedPermission(treeUri, write: true);
-    }
+    await workspace.store.release();
     await controller.setWorkspace(workspace.name, null);
   }
 
@@ -369,17 +333,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             for (final workspace in workspaces.all.values)
               ListTile(
-                leading: Icon(switch (workspace.store) {
-                  SafStore() => Icons.cloud,
-                  _ when workspace.name == config.defaultWorkspace =>
-                    Icons.folder_special,
-                  _ => Icons.folder,
-                }),
+                leading: Icon(
+                  workspace.store.remote
+                      ? Icons.cloud
+                      : workspace.name == config.defaultWorkspace
+                      ? Icons.folder_special
+                      : Icons.folder,
+                ),
                 title: Text(workspace.name),
-                subtitle: _isAndroid && _isMissing(workspace)
+                subtitle: _isAndroid && workspace.store.missing
                     ? Text(context.l10n.workspaceMissing)
                     : _WorkspaceLocation(workspace),
-                enabled: _isAndroid || !_isMissing(workspace),
+                enabled: _isAndroid || !workspace.store.missing,
                 onTap: () => _openWorkspace(workspace),
                 onLongPress: () => _workspaceMenu(workspace),
               ),
@@ -415,11 +380,9 @@ class _WorkspaceLocation extends StatelessWidget {
   final Workspace workspace;
 
   @override
-  Widget build(BuildContext context) => switch (workspace.store) {
-    final SafStore store => FutureBuilder(
-      future: store.label(),
-      builder: (context, snapshot) => Text(snapshot.data ?? store.location),
-    ),
-    final store => Text(store.location),
-  };
+  Widget build(BuildContext context) => FutureBuilder(
+    future: workspace.store.label(),
+    builder: (context, snapshot) =>
+        Text(snapshot.data ?? workspace.store.location),
+  );
 }

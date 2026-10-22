@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import 'l10n/l10n.dart';
 
 import 'norg/edits.dart';
-import 'prompt_dialog.dart';
+import 'dialogs.dart';
 import 'settings.dart';
 import 'workspace/index.dart';
 import 'workspace/store.dart';
@@ -98,22 +98,11 @@ final noteChanges = ValueNotifier(0);
 Future<bool> deleteNote(BuildContext context, NoteRef ref) async {
   final l10n = context.l10n;
   final messenger = ScaffoldMessenger.of(context);
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(l10n.deleteNoteQuestion(ref.name)),
-      content: Text(l10n.deleteNoteBody(ref.store.location)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(l10n.cancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(l10n.delete),
-        ),
-      ],
-    ),
+  final confirmed = await confirm(
+    context,
+    title: l10n.deleteNoteQuestion(ref.name),
+    content: l10n.deleteNoteBody(ref.store.location),
+    accept: l10n.delete,
   );
   if (!(confirmed ?? false)) return false;
   try {

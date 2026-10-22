@@ -30,7 +30,7 @@ abstract interface class NoteStore {
 
   String get location;
 
-  Future<List<NoteEntry>> list(String directory);
+  bool get persistent;
 
   Future<bool> exists(String path);
 
@@ -41,6 +41,20 @@ abstract interface class NoteStore {
   Future<void> delete(String path);
 
   Future<void> openExternally(String path);
+}
+
+abstract interface class NoteFolder implements NoteStore {
+  bool get remote;
+
+  bool get missing;
+
+  Future<String> label();
+
+  Future<bool> isReachable();
+
+  Future<void> release();
+
+  Future<List<NoteEntry>> list(String directory);
 }
 
 extension NoteStoreText on NoteStore {
@@ -70,7 +84,7 @@ class NoteRef {
   int get hashCode => Object.hash(store, path);
 }
 
-class LocalStore implements NoteStore {
+class LocalStore implements NoteFolder {
   LocalStore(this.root);
 
   final Directory root;
@@ -80,6 +94,24 @@ class LocalStore implements NoteStore {
 
   @override
   String get location => root.path;
+
+  @override
+  bool get persistent => true;
+
+  @override
+  bool get remote => false;
+
+  @override
+  bool get missing => !root.existsSync();
+
+  @override
+  Future<String> label() async => location;
+
+  @override
+  Future<bool> isReachable() async => !missing;
+
+  @override
+  Future<void> release() async {}
 
   File _file(String path) => File(p.join(root.path, path));
 
@@ -122,7 +154,7 @@ class LocalStore implements NoteStore {
   int get hashCode => p.canonicalize(root.path).hashCode;
 }
 
-class MemoryStore implements NoteStore {
+class MemoryStore implements NoteFolder {
   MemoryStore(this.location, Map<String, String> files)
     : _files = {
         for (final MapEntry(:key, :value) in files.entries)
@@ -137,9 +169,40 @@ class MemoryStore implements NoteStore {
   final Map<String, Uint8List> _files;
 
   @override
-  Future<List<NoteEntry>> list(String directory) async => [
-    for (final path in _files.keys) NoteEntry(path, isDirectory: false),
-  ];
+  bool get persistent => false;
+
+  @override
+  bool get remote => false;
+
+  @override
+  bool get missing => false;
+
+  @override
+  Future<String> label() async => location;
+
+  @override
+  Future<bool> isReachable() async => true;
+
+  @override
+  Future<void> release() async {}
+
+  @override
+  Future<List<NoteEntry>> list(String directory) async {
+    final prefix = directory.isEmpty ? '' : '${p.posix.normalize(directory)}/';
+    final children = <String, bool>{};
+    for (final path in _files.keys.where((path) => path.startsWith(prefix))) {
+      final slash = path.indexOf('/', prefix.length);
+      if (slash < 0) {
+        children[path] = false;
+      } else {
+        children[path.substring(0, slash)] = true;
+      }
+    }
+    return [
+      for (final MapEntry(key: path, value: isDirectory) in children.entries)
+        NoteEntry(path, isDirectory: isDirectory),
+    ];
+  }
 
   @override
   Future<bool> exists(String path) async => _files.containsKey(path);

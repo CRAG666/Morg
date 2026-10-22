@@ -87,7 +87,12 @@ class NorgTheme {
 
   factory NorgTheme.fromJson(Map<String, Object?> json) => NorgTheme({
     for (final MapEntry(:key, :value) in json.entries)
-      key: NorgHighlight.fromJson((value as Map).cast()),
+      key: switch (value) {
+        final Map<String, Object?> highlight => NorgHighlight.fromJson(
+          highlight,
+        ),
+        _ => throw FormatException('Highlight group "$key" must be an object'),
+      },
   });
 
   final Map<String, NorgHighlight> groups;
@@ -127,16 +132,23 @@ class NorgThemeFamily {
     required this.light,
   });
 
-  factory NorgThemeFamily.fromJson(Map<String, Object?> json) {
-    final variants = (json['variants'] as Map).cast<String, Object?>();
-    NorgTheme variant(String name) =>
-        NorgTheme.fromJson((variants[name] as Map).cast());
-    return NorgThemeFamily(
-      name: json['name'] as String,
-      dark: variant('dark'),
-      light: variant('light'),
-    );
-  }
+  factory NorgThemeFamily.fromJson(Map<String, Object?> json) => switch (json) {
+    {
+      'name': final String name,
+      'variants': {
+        'dark': final Map<String, Object?> dark,
+        'light': final Map<String, Object?> light,
+      },
+    } =>
+      NorgThemeFamily(
+        name: name,
+        dark: NorgTheme.fromJson(dark),
+        light: NorgTheme.fromJson(light),
+      ),
+    _ => throw const FormatException(
+      'A theme needs a "name" and "variants" with "dark" and "light"',
+    ),
+  };
 
   final String name;
   final NorgTheme dark;

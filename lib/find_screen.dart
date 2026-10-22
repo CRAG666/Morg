@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'document_screen.dart';
+import 'dialogs.dart';
 import 'l10n/l10n.dart';
 import 'norg/ast.dart';
 import 'norg/edits.dart';
@@ -104,17 +105,13 @@ class _FindScreenState extends State<FindScreen> {
     try {
       await _index.refresh();
     } on FileSystemException catch (error) {
-      if (!mounted) return;
-      _notify(
-        context.l10n.couldNotReadAt(widget.workspace.store.location, '$error'),
-      );
+      if (mounted) {
+        context.notify(
+          (l10n) =>
+              l10n.couldNotReadAt(widget.workspace.store.location, '$error'),
+        );
+      }
     }
-  }
-
-  void _notify(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _open(IndexedNote note, int line) => Navigator.of(context).push(
@@ -129,7 +126,7 @@ class _FindScreenState extends State<FindScreen> {
       await note.ref.store.write(note.ref.path, source);
       _index.updated(note.ref.path, source);
     } on FileSystemException catch (error) {
-      if (mounted) _notify(context.l10n.saveFailed('$error'));
+      if (mounted) context.notify((l10n) => l10n.saveFailed('$error'));
     }
   }
 
