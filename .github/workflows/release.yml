@@ -21,6 +21,9 @@ jobs:
         run: |
           test "${GITHUB_REF_NAME#v}" = "$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
 
+      - name: Run the tests
+        run: flutter test --exclude-tags golden
+
       - name: Set up release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

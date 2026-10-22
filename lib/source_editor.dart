@@ -157,6 +157,13 @@ class _SourceEditorState extends State<SourceEditor> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.completions case final completions?)
+          TextFieldTapRegion(
+            child: CompletionBar(
+              controller: _controller,
+              completions: completions,
+            ),
+          ),
         TextField(
           controller: _controller,
           focusNode: _focus,
@@ -168,13 +175,6 @@ class _SourceEditorState extends State<SourceEditor> {
           onTapOutside: (_) => _focus.unfocus(),
           decoration: const InputDecoration.collapsed(hintText: ''),
         ),
-        if (widget.completions case final completions?)
-          TextFieldTapRegion(
-            child: CompletionBar(
-              controller: _controller,
-              completions: completions,
-            ),
-          ),
       ],
     ),
   );

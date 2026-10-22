@@ -5,7 +5,7 @@
 <h1 align="center">Morg</h1>
 
 <p align="center">
-  <b>Mobile org</b> — a fast viewer and editor for <a href="https://github.com/nvim-neorg/neorg">Neorg</a> notes on Android,
+  <b>Mobile org</b> a fast viewer and editor for <a href="https://github.com/nvim-neorg/neorg">Neorg</a> notes on Android,
   rendered the way your Neovim shows them.
 </p>
 
@@ -216,11 +216,19 @@ mise exec -- flutter run            # on a device, or -d linux / -d chrome
 ### Before opening a pull request
 
 ```sh
-mise exec -- dart format lib tool
-mise exec -- flutter analyze        # must report "No issues found!"
+mise exec -- dart format lib test tool
+mise exec -- flutter analyze                      # must report "No issues found!"
+mise exec -- flutter test --exclude-tags golden   # also run by the release workflow
+mise exec -- flutter test --tags golden           # screenshots; see below
 mise exec -- flutter build apk --debug
-mise exec -- flutter build web      # cloud folders are stubbed out on the web
+mise exec -- flutter build web                    # cloud folders are stubbed out on the web
 ```
+
+Tests live in `test/`: `norg/` covers the parser, edits, structure, dates, formatting and Markdown; `workspace/`
+the stores and the search index; `widgets/` the interactions that broke before (cursor handle, link suggestions,
+copying, deleting with undo, search tabs). `goldens/` compares screenshots of the demo note, the Neorg guide, the
+menus, the task list and the home screen; pixels depend on the renderer, so they run locally with
+`--tags golden` and are updated with `--update-goldens` after an intended visual change.
 
 ### Guidelines
 

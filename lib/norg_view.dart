@@ -246,6 +246,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 48),
       itemCount: rows.length,
       itemBuilder: (context, index) => SelectionGroup(
+        enabled: _revealed == null,
         copied: _copiedLine(rows[index]),
         child: _row(rows[index]),
       ),

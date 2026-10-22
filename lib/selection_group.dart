@@ -14,16 +14,22 @@ class _MappedSelectionDelegate extends StaticSelectionContainerDelegate {
 }
 
 class SelectionGroup extends StatefulWidget {
-  const SelectionGroup({super.key, required this.copied, required this.child});
+  const SelectionGroup({
+    super.key,
+    required this.copied,
+    required this.child,
+    this.enabled = true,
+  });
 
   final String Function(String text) copied;
   final Widget child;
+  final bool enabled;
 
   @override
-  State<SelectionGroup> createState() => SelectionGroupState();
+  State<SelectionGroup> createState() => _SelectionGroupState();
 }
 
-class SelectionGroupState extends State<SelectionGroup> {
+class _SelectionGroupState extends State<SelectionGroup> {
   late final _delegate = _MappedSelectionDelegate(widget.copied);
 
   @override
@@ -35,6 +41,12 @@ class SelectionGroupState extends State<SelectionGroup> {
   @override
   Widget build(BuildContext context) {
     _delegate.copied = widget.copied;
-    return SelectionContainer(delegate: _delegate, child: widget.child);
+    return widget.enabled
+        ? SelectionContainer(
+            registrar: SelectionContainer.maybeOf(context),
+            delegate: _delegate,
+            child: widget.child,
+          )
+        : SelectionContainer.disabled(child: widget.child);
   }
 }

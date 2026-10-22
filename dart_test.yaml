@@ -1,0 +1,3 @@
+tags:
+  golden:
+    description: Screenshot comparisons; pixels depend on the platform's renderer, so they are compared on the machine that recorded them.

@@ -82,6 +82,8 @@ class _EditorScreenState extends State<EditorScreen> {
         ),
         body: Column(
           children: [
+            if (widget.completions case final completions?)
+              CompletionBar(controller: _controller, completions: completions),
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -96,8 +98,6 @@ class _EditorScreenState extends State<EditorScreen> {
                 ),
               ),
             ),
-            if (widget.completions case final completions?)
-              CompletionBar(controller: _controller, completions: completions),
           ],
         ),
       ),
