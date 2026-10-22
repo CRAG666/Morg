@@ -36,6 +36,19 @@ void main() {
     expect(setTaskDate(dated, 0, '<', null), '- ( ) a');
   });
 
+  test('a due date can carry a time', () {
+    expect(
+      setTaskDate(
+        '- ( ) a',
+        0,
+        '<',
+        DateTime(2026, 10, 30, 18, 5),
+        withTime: true,
+      ),
+      '- ( |< Fri, 30 Oct 2026 18:05) a',
+    );
+  });
+
   test('saving refreshes the updated field of the metadata', () {
     const source = '@document.meta\nupdated: old\n@end\n';
     expect(

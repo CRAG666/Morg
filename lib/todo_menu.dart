@@ -28,6 +28,16 @@ String todoLabel(AppLocalizations l10n, TodoStatus status) => switch (status) {
   TodoStatus.cancelled => l10n.todoCancelled,
 };
 
+bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;
+
+String formatWhen(BuildContext context, DateTime date) {
+  final localizations = MaterialLocalizations.of(context);
+  final day = localizations.formatMediumDate(date);
+  return _hasTime(date)
+      ? '$day, ${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(date))}'
+      : day;
+}
+
 TextStyle todoStyle(BuildContext context, TodoStatus? status) =>
     DocumentStyle.of(context)
         .group('@neorg.todo_items.${todoGroups[status ?? TodoStatus.undone]}');
@@ -57,7 +67,9 @@ Future<SourceEdit?> pickTaskEdit(
             style: todoStyle(context, option),
           ),
         ),
-        Text(todoLabel(l10n, option)),
+        Expanded(
+          child: Text(todoLabel(l10n, option), overflow: TextOverflow.ellipsis),
+        ),
       ],
     ),
   );
@@ -80,9 +92,7 @@ Future<SourceEdit?> pickTaskEdit(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.event),
           title: Text(l10n.dueDate),
-          subtitle: due == null
-              ? null
-              : Text(MaterialLocalizations.of(context).formatMediumDate(due)),
+          subtitle: due == null ? null : Text(formatWhen(context, due)),
         ),
       ),
       if (due != null)
@@ -108,8 +118,18 @@ Future<SourceEdit?> pickTaskEdit(
         firstDate: DateTime(now.year - 10),
         lastDate: DateTime(now.year + 10),
       );
-      if (date == null) return null;
-      return (source) => setTaskDate(source, line, '<', date);
+      if (date == null || !context.mounted) return null;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(
+          due != null && _hasTime(due) ? due : now,
+        ),
+      );
+      final when = time == null
+          ? date
+          : DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      return (source) =>
+          setTaskDate(source, line, '<', when, withTime: time != null);
     case _DueAction.clear:
       return (source) => setTaskDate(source, line, '<', null);
   }

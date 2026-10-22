@@ -81,5 +81,14 @@ void main() {
 
   test('dates are written as in the specification', () {
     expect(norgDate(DateTime(2026, 10, 30)), 'Fri, 30 Oct 2026');
+    expect(
+      norgDate(DateTime(2026, 10, 30, 7, 5), withTime: true),
+      'Fri, 30 Oct 2026 07:05',
+    );
+  });
+
+  test('written dates read back the same', () {
+    final when = DateTime(2026, 10, 30, 18, 30);
+    expect(parse(norgDate(when, withTime: true)), when);
   });
 }

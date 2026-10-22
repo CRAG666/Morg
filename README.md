@@ -111,7 +111,7 @@ controls whether lines indented too far to the right are moved back.
 | Gesture | What it does |
 |---|---|
 | Tap the `( )` of a task | Cycles it like neorg: undone → done → pending |
-| Long-press the `( )` | Picks any of the eight states, or sets or removes a due date |
+| Long-press the `( )` | Picks any of the eight states, or sets or removes a due date; after the day, an optional clock sets the time |
 | Swipe a task to the right | Advances its state |
 | Swipe a task to the left | Deletes it (and its children); **Undo** in the notice brings it back |
 

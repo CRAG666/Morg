@@ -42,6 +42,7 @@ void main() {
     final notes = MemoryStore('agenda', {
       'a.norg':
           '- (< ${day(2)}) dated without status\n'
+          '- ( |< ${day(1)} 18:00) timed task\n'
           '- (# A) only a priority\n\n'
           'Party on {@ ${day(3)}}.\n',
     });
@@ -56,5 +57,6 @@ void main() {
     expect(find.text('only a priority'), findsNothing);
     expect(find.textContaining('Party on'), findsOneWidget);
     expect(find.byIcon(Icons.event_outlined), findsNWidgets(2));
+    expect(find.textContaining('6:00 PM'), findsOneWidget);
   });
 }

@@ -160,13 +160,22 @@ String _withStatus(String line, TodoStatus status) =>
       return index < 0 ? [char, ...segments] : (segments..[index] = char);
     });
 
-String setTaskDate(String source, int line, String marker, DateTime? date) {
+String setTaskDate(
+  String source,
+  int line,
+  String marker,
+  DateTime? date, {
+  bool withTime = false,
+}) {
   final lines = source.split('\n');
   lines[line] = _withSegments(lines[line], (segments) {
     final kept = segments
         .where((segment) => !segment.trim().startsWith('$marker '))
         .toList();
-    return [...kept, if (date != null) '$marker ${norgDate(date)}'];
+    return [
+      ...kept,
+      if (date != null) '$marker ${norgDate(date, withTime: withTime)}',
+    ];
   });
   return lines.join('\n');
 }

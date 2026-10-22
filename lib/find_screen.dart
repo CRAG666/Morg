@@ -352,7 +352,7 @@ class _FindScreenState extends State<FindScreen> {
 
   String _dateLabel(_Dated dated) {
     final l10n = context.l10n;
-    final day = MaterialLocalizations.of(context).formatMediumDate(dated.date);
+    final day = formatWhen(context, dated.date);
     return switch (dated.marker) {
       '<' => l10n.dueOn(day),
       '>' => l10n.startsOn(day),

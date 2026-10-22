@@ -243,9 +243,11 @@ DateTime? _resolve(_Fields fields, DateTime today) {
 String _plain(String word) =>
     word.split('').map((char) => _accents[char] ?? char).join();
 
-String norgDate(DateTime date) {
+String norgDate(DateTime date, {bool withTime = false}) {
   final weekday = _englishWeekdays[date.weekday - 1];
   final month = _englishMonths[date.month - 1];
+  String two(int value) => value.toString().padLeft(2, '0');
   return '${weekday[0].toUpperCase()}${weekday.substring(1, 3)}, ${date.day} '
-      '${month[0].toUpperCase()}${month.substring(1, 3)} ${date.year}';
+      '${month[0].toUpperCase()}${month.substring(1, 3)} ${date.year}'
+      '${withTime ? ' ${two(date.hour)}:${two(date.minute)}' : ''}';
 }
