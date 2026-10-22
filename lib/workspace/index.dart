@@ -49,7 +49,7 @@ class IndexedNote {
   }
 }
 
-const _concurrency = 4;
+const _concurrency = 8;
 const _publishEvery = 24;
 const _freshFor = Duration(minutes: 2);
 const _cacheVersion = 1;
