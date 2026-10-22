@@ -51,7 +51,6 @@ class IndexedNote {
 
 const _concurrency = 8;
 const _publishEvery = 24;
-const _freshFor = Duration(minutes: 2);
 const _cacheVersion = 1;
 
 typedef _Stamp = (int? modified, int? size);
@@ -98,18 +97,12 @@ class WorkspaceIndex {
   final _stamps = <String, _Stamp>{};
   Future<void>? _loaded;
   Future<void>? _scanning;
-  DateTime? _scannedAt;
+  final _touched = <String>{};
 
   Future<void> load() => _loaded ??= _loadCache();
 
-  Future<void> refresh({bool force = false}) async {
+  Future<void> refresh() async {
     await load();
-    final scannedAt = _scannedAt;
-    if (!force &&
-        scannedAt != null &&
-        DateTime.now().difference(scannedAt) < _freshFor) {
-      return;
-    }
     return _scanning ??= _scan().whenComplete(() => _scanning = null);
   }
 
@@ -121,10 +114,12 @@ class WorkspaceIndex {
       parseNorg(source),
     );
     _stamps.remove(path);
+    _touched.add(path);
     _publish();
   }
 
   void removed(String path) {
+    _touched.add(path);
     if (_byPath.remove(path) == null) return;
     _stamps.remove(path);
     _publish();
@@ -146,7 +141,7 @@ class WorkspaceIndex {
       final present = {for (final entry in entries) entry.path};
       final gone = [
         for (final path in _byPath.keys)
-          if (!present.contains(path)) path,
+          if (!present.contains(path) && !_touched.contains(path)) path,
       ];
       for (final path in gone) {
         _byPath.remove(path);
@@ -169,6 +164,7 @@ class WorkspaceIndex {
         ]);
         final parsed = await compute(_parseAll, sources);
         for (final (index, entry) in group.indexed) {
+          if (_touched.contains(entry.path)) continue;
           _add((
             entry.path,
             entry.modified,
@@ -179,9 +175,9 @@ class WorkspaceIndex {
         _publish();
       }
       _publish();
-      _scannedAt = DateTime.now();
       if (changed.isNotEmpty || gone.isNotEmpty) await _saveCache();
     } finally {
+      _touched.clear();
       refreshing.value = false;
       await pool.close();
     }

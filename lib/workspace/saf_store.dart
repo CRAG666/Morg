@@ -9,11 +9,13 @@ import 'package:saf_util/saf_util.dart';
 import 'store.dart';
 
 const _norgMime = 'application/octet-stream';
+const _providers = {'com.google.android.apps.docs.storage': 'Google Drive'};
 
 class SafStore implements NoteStore {
   SafStore(this.treeUri);
 
   static final _documents = <String, Map<String, String>>{};
+  static final _labels = <String, Future<String>>{};
 
   final String treeUri;
   final _util = SafUtil();
@@ -25,7 +27,15 @@ class SafStore implements NoteStore {
   String get id => 'saf:$treeUri';
 
   @override
-  String get location => Uri.decodeComponent(treeUri.split('/').last);
+  String get location =>
+      _providers[Uri.parse(treeUri).authority] ??
+      Uri.decodeComponent(treeUri.split('/').last);
+
+  Future<String> label() => _labels.putIfAbsent(treeUri, () async {
+    final folder = await _saf(treeUri, () => _util.stat(treeUri, true));
+    final provider = _providers[Uri.parse(treeUri).authority];
+    return [?provider, ?folder?.name].join(' · ').ifEmpty(location);
+  });
 
   List<String> _segments(String path) =>
       p.posix.split(path).where((segment) => segment != '.').toList();
@@ -165,4 +175,8 @@ Future<T> _saf<T>(String path, Future<T> Function() action) async {
   } on PlatformException catch (error) {
     throw FileSystemException(error.message ?? error.code, path);
   }
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

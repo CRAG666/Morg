@@ -35,6 +35,8 @@ class SafStore extends _WebUnsupportedStore {
 
   @override
   String get location => treeUri;
+
+  Future<String> label() => _unsupported();
 }
 
 class SafFileStore extends _WebUnsupportedStore {

@@ -100,9 +100,9 @@ class _FindScreenState extends State<FindScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh({bool force = false}) async {
+  Future<void> _refresh() async {
     try {
-      await _index.refresh(force: force);
+      await _index.refresh();
     } on FileSystemException catch (error) {
       if (!mounted) return;
       _notify(
@@ -160,7 +160,7 @@ class _FindScreenState extends State<FindScreen> {
             builder: (context, refreshing, _) => IconButton(
               tooltip: context.l10n.refresh,
               icon: const Icon(Icons.sync),
-              onPressed: refreshing ? null : () => _refresh(force: true),
+              onPressed: refreshing ? null : _refresh,
             ),
           ),
         ],

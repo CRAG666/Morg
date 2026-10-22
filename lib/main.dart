@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 workspace.name,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              subtitle: Text(workspace.store.location),
+              subtitle: _WorkspaceLocation(workspace),
             ),
             for (final (action, icon, label) in [
               (
@@ -376,11 +376,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _ => Icons.folder,
                 }),
                 title: Text(workspace.name),
-                subtitle: Text(
-                  _isAndroid && _isMissing(workspace)
-                      ? context.l10n.workspaceMissing
-                      : workspace.store.location,
-                ),
+                subtitle: _isAndroid && _isMissing(workspace)
+                    ? Text(context.l10n.workspaceMissing)
+                    : _WorkspaceLocation(workspace),
                 enabled: _isAndroid || !_isMissing(workspace),
                 onTap: () => _openWorkspace(workspace),
                 onLongPress: () => _workspaceMenu(workspace),
@@ -410,3 +408,18 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 enum _WorkspaceAction { browse, relocate, rename, remove }
+
+class _WorkspaceLocation extends StatelessWidget {
+  const _WorkspaceLocation(this.workspace);
+
+  final Workspace workspace;
+
+  @override
+  Widget build(BuildContext context) => switch (workspace.store) {
+    final SafStore store => FutureBuilder(
+      future: store.label(),
+      builder: (context, snapshot) => Text(snapshot.data ?? store.location),
+    ),
+    final store => Text(store.location),
+  };
+}
