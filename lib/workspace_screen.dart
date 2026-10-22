@@ -50,6 +50,18 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       });
   }
 
+  @override
+  void initState() {
+    super.initState();
+    noteChanges.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    noteChanges.removeListener(_refresh);
+    super.dispose();
+  }
+
   void _refresh() => setState(() {
     _entries = _list();
   });
@@ -226,6 +238,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           ? entry.name
                           : p.posix.basenameWithoutExtension(entry.name),
                     ),
+                    onLongPress: entry.isDirectory
+                        ? null
+                        : () =>
+                              deleteNote(context, NoteRef(_store, entry.path)),
                     onTap: () => entry.isDirectory
                         ? _open(
                             WorkspaceScreen(

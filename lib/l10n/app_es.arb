@@ -139,5 +139,10 @@
   "formatOnEdit": "Formatear las líneas editadas",
   "dedentExcess": "Quitar sangría de más",
   "formatFile": "Formatear archivo",
-  "formatted": "Formateado"
+  "formatted": "Formateado",
+  "deleteNote": "Eliminar nota",
+  "deleteNoteQuestion": "¿Eliminar {name}?",
+  "deleteNoteBody": "El archivo se borra de {location}. Puedes deshacerlo justo después.",
+  "noteDeleted": "{name} eliminada",
+  "deleteFailed": "No se pudo eliminar: {error}"
 }

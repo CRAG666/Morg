@@ -37,6 +37,7 @@ enum _DocumentAction {
   nextDay,
   exportMarkdown,
   format,
+  delete,
 }
 
 class DocumentScreen extends StatefulWidget {
@@ -339,6 +340,10 @@ class _DocumentScreenState extends State<DocumentScreen> {
         );
       case _DocumentAction.exportMarkdown:
         await _exportMarkdown();
+      case _DocumentAction.delete:
+        if (await deleteNote(context, widget.note) && mounted) {
+          Navigator.of(context).pop();
+        }
       case _DocumentAction.format:
         await _transform(
           (source) => reindent(source, dedentExcess: config.dedentExcess),
@@ -435,6 +440,12 @@ class _DocumentScreenState extends State<DocumentScreen> {
                   Icons.ios_share,
                   l10n.exportMarkdown,
                   editable,
+                ),
+                (
+                  _DocumentAction.delete,
+                  Icons.delete_outline,
+                  l10n.deleteNote,
+                  editable && widget.note.store is! MemoryStore,
                 ),
               ])
                 if (enabled)

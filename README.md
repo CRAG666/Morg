@@ -137,6 +137,7 @@ Long-press a **heading icon** or a **list bullet**, or the empty space to its le
 | **Agenda** in the file browser | Opens the agenda directly |
 | ⋮ in a note | **New note** (in the workspace root, like `core.dirman`; type `folder/name` for a subfolder), **Journal** of today or of any date, the previous or next day when the note is a journal entry, and **Export to Markdown** |
 | **+** in the file browser (⋮ → **Browse files**) | **New note** in the folder you are browsing |
+| ⋮ → **Delete note** in a note, or long-press a file in the file browser | Deletes the note after confirming; **Undo** in the notice restores it with the same content |
 | ⋮ in the file browser | **Journal for a date…** and **Workspace summary**, which writes `summary.norg` with every note grouped by `categories:` |
 
 Dates use the Norg timestamp format from the specification: `(< Sat, 29 Oct 2026)` is a due date,

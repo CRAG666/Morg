@@ -288,5 +288,38 @@
   "formatOnEdit": "Format edited lines",
   "dedentExcess": "Remove extra indentation",
   "formatFile": "Format file",
-  "formatted": "Formatted"
+  "formatted": "Formatted",
+  "deleteNote": "Delete note",
+  "deleteNoteQuestion": "Delete {name}?",
+  "@deleteNoteQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteNoteBody": "The file is removed from {location}. You can undo it right after.",
+  "@deleteNoteBody": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "noteDeleted": "{name} deleted",
+  "@noteDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFailed": "Could not delete: {error}",
+  "@deleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -71,6 +71,10 @@ class SafStore implements NoteStore {
   });
 
   @override
+  Future<void> delete(String path) =>
+      _saf(path, () async => _util.delete(await _uri(path), false));
+
+  @override
   Future<void> openExternally(String path) => _saf(path, () async {
     final copy = p.join(
       (await getTemporaryDirectory()).path,
@@ -94,6 +98,7 @@ class SafFileStore implements NoteStore {
   final String fileUri;
   final String fileName;
   final _stream = SafStream();
+  final _util = SafUtil();
 
   @override
   String get location => fileName;
@@ -121,6 +126,12 @@ class SafFileStore implements NoteStore {
   Future<void> writeBytes(String path, Uint8List bytes) async {
     _check(path);
     await _saf(path, () => _stream.writeFileUriBytes(fileUri, bytes));
+  }
+
+  @override
+  Future<void> delete(String path) async {
+    _check(path);
+    await _saf(path, () => _util.delete(fileUri, false));
   }
 
   @override

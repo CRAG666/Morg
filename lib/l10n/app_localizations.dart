@@ -937,6 +937,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Formatted'**
   String get formatted;
+
+  /// No description provided for @deleteNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete note'**
+  String get deleteNote;
+
+  /// No description provided for @deleteNoteQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String deleteNoteQuestion(String name);
+
+  /// No description provided for @deleteNoteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is removed from {location}. You can undo it right after.'**
+  String deleteNoteBody(String location);
+
+  /// No description provided for @noteDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} deleted'**
+  String noteDeleted(String name);
+
+  /// No description provided for @deleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete: {error}'**
+  String deleteFailed(String error);
 }
 
 class _AppLocalizationsDelegate

@@ -29,6 +29,8 @@ abstract interface class NoteStore {
 
   Future<void> writeBytes(String path, Uint8List bytes);
 
+  Future<void> delete(String path);
+
   Future<void> openExternally(String path);
 }
 
@@ -92,6 +94,9 @@ class LocalStore implements NoteStore {
   }
 
   @override
+  Future<void> delete(String path) => _file(path).delete();
+
+  @override
   Future<void> openExternally(String path) => openWithSystem(_file(path).path);
 
   @override
@@ -128,6 +133,13 @@ class MemoryStore implements NoteStore {
   @override
   Future<void> writeBytes(String path, Uint8List bytes) async =>
       _files[path] = bytes;
+
+  @override
+  Future<void> delete(String path) async {
+    if (_files.remove(path) == null) {
+      throw FileSystemException('Not found', path);
+    }
+  }
 
   @override
   Future<void> openExternally(String path) =>

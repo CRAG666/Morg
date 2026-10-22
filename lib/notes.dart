@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -58,11 +60,14 @@ Future<void> createNote(
   NoteRef ref, {
   required String author,
   String? contents,
-}) => ref.store.write(
-  ref.path,
-  contents ??
-      metadataTemplate(title: ref.name, author: author, now: DateTime.now()),
-);
+}) async {
+  await ref.store.write(
+    ref.path,
+    contents ??
+        metadataTemplate(title: ref.name, author: author, now: DateTime.now()),
+  );
+  noteChanges.value++;
+}
 
 Future<NoteRef?> askNewNote(
   BuildContext context,
@@ -84,4 +89,54 @@ Future<NoteRef?> askNewNote(
   final ref = NoteRef(store, path.endsWith('.norg') ? path : '$path.norg');
   if (!await store.exists(ref.path)) await createNote(ref, author: author);
   return ref;
+}
+
+final noteChanges = ValueNotifier(0);
+
+Future<bool> deleteNote(BuildContext context, NoteRef ref) async {
+  final l10n = context.l10n;
+  final messenger = ScaffoldMessenger.of(context);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(l10n.deleteNoteQuestion(ref.name)),
+      content: Text(l10n.deleteNoteBody(ref.store.location)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(l10n.delete),
+        ),
+      ],
+    ),
+  );
+  if (!(confirmed ?? false)) return false;
+  try {
+    final bytes = await ref.store.readBytes(ref.path);
+    await ref.store.delete(ref.path);
+    noteChanges.value++;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(l10n.noteDeleted(ref.name)),
+          action: SnackBarAction(
+            label: l10n.undo,
+            onPressed: () async {
+              await ref.store.writeBytes(ref.path, bytes);
+              noteChanges.value++;
+            },
+          ),
+        ),
+      );
+    return true;
+  } on FileSystemException catch (error) {
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.deleteFailed('$error'))),
+    );
+    return false;
+  }
 }

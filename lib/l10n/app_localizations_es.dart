@@ -477,4 +477,27 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get formatted => 'Formateado';
+
+  @override
+  String get deleteNote => 'Eliminar nota';
+
+  @override
+  String deleteNoteQuestion(String name) {
+    return '¿Eliminar $name?';
+  }
+
+  @override
+  String deleteNoteBody(String location) {
+    return 'El archivo se borra de $location. Puedes deshacerlo justo después.';
+  }
+
+  @override
+  String noteDeleted(String name) {
+    return '$name eliminada';
+  }
+
+  @override
+  String deleteFailed(String error) {
+    return 'No se pudo eliminar: $error';
+  }
 }
