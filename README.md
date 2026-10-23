@@ -16,10 +16,24 @@
 ![Neovim (left) and Morg (right) rendering the same file](docs/screenshots/neovim-vs-morg.png)
 
 <p align="center">
-  <img src="docs/screenshots/guide-markup.png" width="24%" alt="Inline markup">
-  <img src="docs/screenshots/guide-tasks.png" width="24%" alt="Tasks and code">
+  <img src="docs/screenshots/home.png" width="24%" alt="Workspaces">
+  <img src="docs/screenshots/document.png" width="24%" alt="A note with tasks, dates, math and code">
+  <img src="docs/screenshots/task-menu.png" width="24%" alt="Task states and due date">
+  <img src="docs/screenshots/agenda.png" width="24%" alt="Agenda">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/editing.png" width="24%" alt="Editing an element with link suggestions">
+  <img src="docs/screenshots/element-menu.png" width="24%" alt="Element menu">
+  <img src="docs/screenshots/outline.png" width="24%" alt="Outline">
+  <img src="docs/screenshots/note-menu.png" width="24%" alt="Note menu">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/search.png" width="24%" alt="Search across the workspace">
+  <img src="docs/screenshots/tasks.png" width="24%" alt="Tasks by state">
+  <img src="docs/screenshots/browser.png" width="24%" alt="File browser">
   <img src="docs/screenshots/guide-light.png" width="24%" alt="Light theme">
-  <img src="docs/screenshots/workspace.png" width="24%" alt="Workspace browser">
 </p>
 
 ## Features
@@ -233,6 +247,19 @@ the stores and the search index; `widgets/` the interactions that broke before (
 copying, deleting with undo, search tabs). `goldens/` compares screenshots of the demo note, the Neorg guide, the
 menus, the task list and the home screen; pixels depend on the renderer, so they run locally with
 `--tags golden` and are updated with `--update-goldens` after an intended visual change.
+
+The README screenshots come from `tool/readme_screenshots_test.dart`, which drives the app through a demo workspace.
+It needs `uv` (to merge Adwaita Mono's symbols into JetBrains Mono, since tests have no system font fallback),
+Noto Color Emoji and ImageMagick:
+
+```sh
+mise exec -- flutter test tool/readme_screenshots_test.dart --update-goldens
+magick docs/screenshots/neovim-vs-morg.png build/readme/guide-morg.png -geometry +430+6 -composite \
+  PNG8:docs/screenshots/neovim-vs-morg.png
+for shot in docs/screenshots/*.png; do
+  [ "$shot" = docs/screenshots/neovim-vs-morg.png ] || magick "$shot" -resize 600x -colors 256 "PNG8:$shot"
+done
+```
 
 ### Guidelines
 

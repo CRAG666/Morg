@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -40,22 +41,15 @@ void mockSupportDirectory(String path) =>
           (call) async => path,
         );
 
-Future<void> loadFonts() async {
-  for (final (family, files) in [
-    (
-      'JetBrainsMono',
-      [
-        'JetBrainsMono-Regular',
-        'JetBrainsMono-Bold',
-        'JetBrainsMono-Italic',
-        'JetBrainsMono-BoldItalic',
-      ],
-    ),
-    ('SymbolsNerdFontMono', ['SymbolsNerdFontMono-Regular']),
-  ]) {
-    final loader = FontLoader(family);
-    for (final file in files) {
-      loader.addFont(rootBundle.load('assets/fonts/$file.ttf'));
+Future<void> loadFonts({Future<ByteData> Function(String asset)? load}) async {
+  final manifest = jsonDecode(
+    await rootBundle.loadString('FontManifest.json'),
+  ) as List<Object?>;
+  for (final family in manifest.cast<Map<String, Object?>>()) {
+    final loader = FontLoader(family['family']! as String);
+    for (final font
+        in (family['fonts']! as List<Object?>).cast<Map<String, Object?>>()) {
+      loader.addFont((load ?? rootBundle.load)(font['asset']! as String));
     }
     await loader.load();
   }
