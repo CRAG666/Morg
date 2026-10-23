@@ -11,6 +11,7 @@ import 'store.dart';
 
 const _norgMime = 'application/octet-stream';
 const _providers = {'com.google.android.apps.docs.storage': 'Google Drive'};
+const _provider = MethodChannel('dev.morg/documents');
 
 class SafStore implements NoteFolder {
   SafStore(this.treeUri);
@@ -66,6 +67,7 @@ class SafStore implements NoteFolder {
   String _key(List<String> segments) => p.posix.joinAll(segments);
 
   Future<List<NoteEntry>> _listing(String directory, String uri) async {
+    await _provider.invokeMethod<bool>('awaitChildren', {'uri': uri});
     final newest = <String, NoteEntry>{};
     for (final document in await _util.list(uri)) {
       final path = p.posix.normalize(p.posix.join(directory, document.name));

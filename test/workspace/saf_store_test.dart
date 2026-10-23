@@ -36,11 +36,28 @@ class _FakeDrive {
       const MethodChannel('saf_stream'),
       _stream,
     );
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('dev.morg/documents'),
+      _fetch,
+    );
   }
 
   final documents = <_Document>[];
   final staleLookups = <String>{};
   final failingWrites = <String>{};
+  final notFetched = <String>{};
+
+  Future<Object?> _fetch(MethodCall call) async {
+    final parent = (call.arguments as Map<Object?, Object?>)['uri'];
+    final fetched = {
+      for (final document in documents)
+        if (document.parent == parent && notFetched.contains(document.uri))
+          document.uri,
+    };
+    notFetched.removeAll(fetched);
+    staleLookups.removeAll(fetched);
+    return fetched.isNotEmpty;
+  }
 
   String add(
     String name, {
@@ -239,5 +256,16 @@ void main() {
     expect(await store.create('journal/new.norg', utf8.encode('x')), isTrue);
     expect(drive.named('journal'), hasLength(1));
     expect(drive.named('new.norg').single.parent, journal);
+  });
+
+  test('a folder lists the notes Drive was still fetching', () async {
+    const folder = '$_root/fetching';
+    final drive = _FakeDrive();
+    final fromWeb = drive.add('from-web.norg', parent: folder);
+    drive
+      ..staleLookups.add(fromWeb)
+      ..notFetched.add(fromWeb);
+    final entries = await SafStore(folder).list('');
+    expect(entries.map((entry) => entry.path), ['from-web.norg']);
   });
 }
