@@ -72,20 +72,19 @@ class SafStore implements NoteFolder {
 
   @override
   Future<List<NoteEntry>> list(String directory) => _saf(directory, () async {
-    final entries = <NoteEntry>[];
+    final newest = <String, NoteEntry>{};
     for (final document in await _util.list(await _uri(directory))) {
       final path = p.posix.normalize(p.posix.join(directory, document.name));
+      if ((newest[path]?.modified ?? -1) > document.lastModified) continue;
       _known[path] = document.uri;
-      entries.add(
-        NoteEntry(
-          path,
-          isDirectory: document.isDir,
-          modified: document.lastModified,
-          size: document.length,
-        ),
+      newest[path] = NoteEntry(
+        path,
+        isDirectory: document.isDir,
+        modified: document.lastModified,
+        size: document.length,
       );
     }
-    return entries;
+    return newest.values.toList();
   });
 
   @override
@@ -101,16 +100,28 @@ class SafStore implements NoteFolder {
   @override
   Future<void> writeBytes(String path, Uint8List bytes) => _saf(path, () async {
     final segments = _segments(path);
-    final existing = await _util.child(treeUri, segments);
-    if (existing != null) {
-      await _stream.writeFileUriBytes(existing.uri, bytes);
-      return;
+    final key = p.posix.joinAll(segments);
+    if (_known[key] case final uri?) {
+      try {
+        await _stream.writeFileUriBytes(uri, bytes);
+        return;
+      } on PlatformException {
+        _known.remove(key);
+        rethrow;
+      }
     }
     final parents = segments.sublist(0, segments.length - 1);
     final directory = parents.isEmpty
         ? treeUri
         : (await _util.mkdirp(treeUri, parents)).uri;
-    await _stream.writeFileBytes(directory, segments.last, _norgMime, bytes);
+    final file = await _stream.writeFileBytes(
+      directory,
+      segments.last,
+      _norgMime,
+      bytes,
+      overwrite: true,
+    );
+    _known[key] = file.uri.toString();
   });
 
   @override
