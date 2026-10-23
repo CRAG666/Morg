@@ -282,8 +282,11 @@ class _HomeScreenState extends State<HomeScreen> {
       accept: context.l10n.remove,
     );
     if (!(remove ?? false)) return;
-    await workspace.store.release();
     await controller.setWorkspace(workspace.name, null);
+    final remaining = Workspaces.of(controller.value.config).all.values;
+    if (!remaining.any((other) => other.store == workspace.store)) {
+      await workspace.store.release();
+    }
   }
 
   @override

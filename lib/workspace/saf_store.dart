@@ -47,8 +47,11 @@ class SafStore implements NoteFolder {
       _util.hasPersistedPermission(treeUri, checkWrite: true);
 
   @override
-  Future<void> release() =>
-      _util.releasePersistedPermission(treeUri, write: true);
+  Future<void> release() => _saf(treeUri, () async {
+    if (await _util.hasPersistedPermission(treeUri)) {
+      await _util.releasePersistedPermission(treeUri, write: true);
+    }
+  });
 
   @override
   Future<String> label() => _labels.putIfAbsent(treeUri, () async {
