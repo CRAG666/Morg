@@ -66,7 +66,7 @@ Future<void> createNote(
   final source =
       contents ??
       metadataTemplate(title: ref.name, author: author, now: DateTime.now());
-  await ref.store.write(ref.path, source);
+  if (!await ref.store.create(ref.path, utf8.encode(source))) return;
   WorkspaceIndex.peek(ref.store)?.updated(ref.path, source);
   noteChanges.value++;
 }

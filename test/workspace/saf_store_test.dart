@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:morg/workspace/store.dart';
@@ -38,13 +40,19 @@ class _FakeDrive {
 
   final documents = <_Document>[];
   final staleLookups = <String>{};
+  final failingWrites = <String>{};
 
-  String add(String name, {String parent = _root, int modified = 0}) {
+  String add(
+    String name, {
+    String parent = _root,
+    int modified = 0,
+    bool isDir = false,
+  }) {
     final document = _Document(
       'content://drive/document/${documents.length}',
       parent,
       name,
-      false,
+      isDir,
       modified,
     );
     documents.add(document);
@@ -86,7 +94,8 @@ class _FakeDrive {
       case 'list':
         return [
           for (final document in documents)
-            if (document.parent == uri) document.toMap(),
+            if (document.parent == uri && !staleLookups.contains(document.uri))
+              document.toMap(),
         ];
       case 'child':
         var parent = uri;
@@ -115,6 +124,9 @@ class _FakeDrive {
     final data = arguments['data']! as Uint8List;
     final _Document target;
     if (arguments['fileUri'] case final String uri) {
+      if (failingWrites.remove(uri)) {
+        throw PlatformException(code: 'PluginError', message: 'offline');
+      }
       target = documents.firstWhere((document) => document.uri == uri);
     } else {
       final parent = arguments['treeUri']! as String;
@@ -167,5 +179,65 @@ void main() {
     final [note] = drive.named('today.norg');
     expect(drive.text(note.uri), 'second');
     expect(drive.named('journal'), hasLength(1));
+  });
+
+  test('creating a note never replaces one the lookup misses', () async {
+    const folder = '$_root/existing';
+    final drive = _FakeDrive();
+    final today = drive.add('today.norg', parent: folder);
+    await drive._stream(
+      MethodCall('writeFileBytes', {
+        'fileUri': today,
+        'data': utf8.encode('my notes'),
+      }),
+    );
+    final store = SafStore(folder);
+    await store.list('');
+    drive.staleLookups.add(today);
+    expect(await store.create('today.norg', utf8.encode('template')), isFalse);
+    expect(drive.named('today.norg'), hasLength(1));
+    expect(drive.text(today), 'my notes');
+  });
+
+  test('two creations of the same note at once make one file', () async {
+    final drive = _FakeDrive();
+    final store = SafStore('$_root/concurrent');
+    final created = await Future.wait([
+      store.create('journal/today.norg', utf8.encode('a')),
+      store.create('journal/today.norg', utf8.encode('b')),
+    ]);
+    expect(created, unorderedEquals([true, false]));
+    expect(drive.named('today.norg'), hasLength(1));
+    expect(drive.named('journal'), hasLength(1));
+  });
+
+  test('a failed save does not make the next one create a file', () async {
+    const folder = '$_root/offline';
+    final drive = _FakeDrive();
+    final note = drive.add('note.norg', parent: folder);
+    final store = SafStore(folder);
+    await store.list('');
+    drive
+      ..staleLookups.add(note)
+      ..failingWrites.add(note);
+    await expectLater(
+      store.write('note.norg', 'first try'),
+      throwsA(isA<FileSystemException>()),
+    );
+    await store.write('note.norg', 'second try');
+    expect(drive.named('note.norg'), hasLength(1));
+    expect(drive.text(note), 'second try');
+  });
+
+  test('a new note goes into a known folder when its lookup misses', () async {
+    const folder = '$_root/known-folder';
+    final drive = _FakeDrive();
+    final journal = drive.add('journal', parent: folder, isDir: true);
+    final store = SafStore(folder);
+    await store.list('');
+    drive.staleLookups.add(journal);
+    expect(await store.create('journal/new.norg', utf8.encode('x')), isTrue);
+    expect(drive.named('journal'), hasLength(1));
+    expect(drive.named('new.norg').single.parent, journal);
   });
 }

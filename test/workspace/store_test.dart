@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,16 @@ void main() {
       'sub/b.norg',
       'sub/deep/',
     ]);
+  });
+
+  test('creating a note keeps an existing one untouched', () async {
+    final root = await temporaryFolder();
+    addTearDown(() => root.delete(recursive: true));
+    for (final store in [LocalStore(root), MemoryStore('demo', {})]) {
+      expect(await store.create('a/b.norg', utf8.encode('first')), isTrue);
+      expect(await store.create('a/b.norg', utf8.encode('second')), isFalse);
+      expect(await store.read('a/b.norg'), 'first');
+    }
   });
 
   test('a local folder reads, writes, lists and deletes', () async {

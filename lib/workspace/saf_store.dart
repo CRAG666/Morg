@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:pool/pool.dart';
 import 'package:saf_stream/saf_stream.dart';
 import 'package:saf_util/saf_util.dart';
 
@@ -16,6 +17,7 @@ class SafStore implements NoteFolder {
 
   static final _documents = <String, Map<String, String>>{};
   static final _labels = <String, Future<String>>{};
+  static final _creating = Pool(1);
 
   final String treeUri;
   final _util = SafUtil();
@@ -58,22 +60,11 @@ class SafStore implements NoteFolder {
   List<String> _segments(String path) =>
       p.posix.split(path).where((segment) => segment != '.').toList();
 
-  Future<String> _uri(String path) async {
-    final segments = _segments(path);
-    if (segments.isEmpty) return treeUri;
-    final key = p.posix.joinAll(segments);
-    if (_known[key] case final uri?) return uri;
-    final document = await _util.child(treeUri, segments);
-    if (document == null) {
-      throw FileSystemException('Not found in the cloud folder', path);
-    }
-    return _known[key] = document.uri;
-  }
+  String _key(List<String> segments) => p.posix.joinAll(segments);
 
-  @override
-  Future<List<NoteEntry>> list(String directory) => _saf(directory, () async {
+  Future<List<NoteEntry>> _listing(String directory, String uri) async {
     final newest = <String, NoteEntry>{};
-    for (final document in await _util.list(await _uri(directory))) {
+    for (final document in await _util.list(uri)) {
       final path = p.posix.normalize(p.posix.join(directory, document.name));
       if ((newest[path]?.modified ?? -1) > document.lastModified) continue;
       _known[path] = document.uri;
@@ -85,13 +76,52 @@ class SafStore implements NoteFolder {
       );
     }
     return newest.values.toList();
-  });
+  }
+
+  Future<String?> _find(List<String> segments) async {
+    if (segments.isEmpty) return treeUri;
+    if (_known[_key(segments)] case final uri?) return uri;
+    final parents = segments.sublist(0, segments.length - 1);
+    final parent = await _find(parents);
+    if (parent == null) return null;
+    await _listing(_key(parents), parent);
+    return _known[_key(segments)];
+  }
+
+  Future<String> _uri(String path) async =>
+      await _find(_segments(path)) ??
+      (throw FileSystemException('Not found in the cloud folder', path));
+
+  Future<void> _createFile(List<String> segments, Uint8List bytes) async {
+    final parents = segments.sublist(0, segments.length - 1);
+    var directory = treeUri;
+    var depth = 0;
+    while (depth < parents.length) {
+      final known = _known[_key(parents.sublist(0, depth + 1))];
+      if (known == null) break;
+      directory = known;
+      depth++;
+    }
+    if (depth < parents.length) {
+      directory = (await _util.mkdirp(directory, parents.sublist(depth))).uri;
+      _known[_key(parents)] = directory;
+    }
+    final file = await _stream.writeFileBytes(
+      directory,
+      segments.last,
+      _norgMime,
+      bytes,
+    );
+    _known[_key(segments)] = file.uri.toString();
+  }
 
   @override
-  Future<bool> exists(String path) => _saf(path, () async {
-    final segments = _segments(path);
-    return segments.isEmpty || await _util.child(treeUri, segments) != null;
-  });
+  Future<List<NoteEntry>> list(String directory) =>
+      _saf(directory, () async => _listing(directory, await _uri(directory)));
+
+  @override
+  Future<bool> exists(String path) =>
+      _saf(path, () async => await _find(_segments(path)) != null);
 
   @override
   Future<Uint8List> readBytes(String path) =>
@@ -100,29 +130,29 @@ class SafStore implements NoteFolder {
   @override
   Future<void> writeBytes(String path, Uint8List bytes) => _saf(path, () async {
     final segments = _segments(path);
-    final key = p.posix.joinAll(segments);
-    if (_known[key] case final uri?) {
-      try {
-        await _stream.writeFileUriBytes(uri, bytes);
-        return;
-      } on PlatformException {
-        _known.remove(key);
-        rethrow;
-      }
+    if (_known[_key(segments)] case final uri?) {
+      await _stream.writeFileUriBytes(uri, bytes);
+      return;
     }
-    final parents = segments.sublist(0, segments.length - 1);
-    final directory = parents.isEmpty
-        ? treeUri
-        : (await _util.mkdirp(treeUri, parents)).uri;
-    final file = await _stream.writeFileBytes(
-      directory,
-      segments.last,
-      _norgMime,
-      bytes,
-      overwrite: true,
-    );
-    _known[key] = file.uri.toString();
+    await _creating.withResource(() async {
+      if (await _find(segments) case final uri?) {
+        await _stream.writeFileUriBytes(uri, bytes);
+      } else {
+        await _createFile(segments, bytes);
+      }
+    });
   });
+
+  @override
+  Future<bool> create(String path, Uint8List bytes) => _saf(
+    path,
+    () => _creating.withResource(() async {
+      final segments = _segments(path);
+      if (await _find(segments) != null) return false;
+      await _createFile(segments, bytes);
+      return true;
+    }),
+  );
 
   @override
   Future<void> delete(String path) => _saf(path, () async {
@@ -187,6 +217,12 @@ class SafFileStore implements NoteStore {
   }
 
   @override
+  Future<bool> create(String path, Uint8List bytes) async {
+    _check(path);
+    return false;
+  }
+
+  @override
   Future<void> delete(String path) async {
     _check(path);
     await _saf(path, () => _util.delete(fileUri, false));
@@ -200,8 +236,12 @@ class SafFileStore implements NoteStore {
 Future<T> _saf<T>(String path, Future<T> Function() action) async {
   try {
     return await action();
+  } on FileSystemException {
+    rethrow;
   } on PlatformException catch (error) {
     throw FileSystemException(error.message ?? error.code, path);
+  } on Exception catch (error) {
+    throw FileSystemException('$error', path);
   }
 }
 

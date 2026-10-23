@@ -38,6 +38,8 @@ abstract interface class NoteStore {
 
   Future<void> writeBytes(String path, Uint8List bytes);
 
+  Future<bool> create(String path, Uint8List bytes);
+
   Future<void> delete(String path);
 
   Future<void> openExternally(String path);
@@ -141,6 +143,19 @@ class LocalStore implements NoteFolder {
   }
 
   @override
+  Future<bool> create(String path, Uint8List bytes) async {
+    final file = _file(path);
+    await file.parent.create(recursive: true);
+    try {
+      await file.create(exclusive: true);
+    } on PathExistsException {
+      return false;
+    }
+    await file.writeAsBytes(bytes);
+    return true;
+  }
+
+  @override
   Future<void> delete(String path) => _file(path).delete();
 
   @override
@@ -214,6 +229,13 @@ class MemoryStore implements NoteFolder {
   @override
   Future<void> writeBytes(String path, Uint8List bytes) async =>
       _files[path] = bytes;
+
+  @override
+  Future<bool> create(String path, Uint8List bytes) async {
+    if (_files.containsKey(path)) return false;
+    _files[path] = bytes;
+    return true;
+  }
 
   @override
   Future<void> delete(String path) async {

@@ -19,6 +19,9 @@ abstract class _WebUnsupportedStore implements NoteStore {
   Future<void> writeBytes(String path, Uint8List bytes) => _unsupported();
 
   @override
+  Future<bool> create(String path, Uint8List bytes) => _unsupported();
+
+  @override
   Future<void> delete(String path) => _unsupported();
 
   @override
