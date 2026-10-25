@@ -1,5 +1,6 @@
 {
   "@@locale": "es",
+  "editNotApplied": "La nota cambió mientras editabas, así que ese cambio no se aplicó.",
   "themeLight": "Tema claro",
   "themeDark": "Tema oscuro",
   "saveFailed": "No se pudo guardar: {error}",

@@ -10,6 +10,10 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get editNotApplied =>
+      'La nota cambió mientras editabas, así que ese cambio no se aplicó.';
+
+  @override
   String get themeLight => 'Tema claro';
 
   @override

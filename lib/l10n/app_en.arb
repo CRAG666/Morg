@@ -1,5 +1,6 @@
 {
   "@@locale": "en",
+  "editNotApplied": "The note changed while you were editing, so that change was not applied.",
   "themeLight": "Light theme",
   "themeDark": "Dark theme",
   "saveFailed": "Could not save: {error}",

@@ -10,6 +10,10 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get editNotApplied =>
+      'The note changed while you were editing, so that change was not applied.';
+
+  @override
   String get themeLight => 'Light theme';
 
   @override

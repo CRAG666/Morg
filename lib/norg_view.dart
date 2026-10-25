@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
@@ -120,6 +121,7 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
   late List<String> _lines = widget.source.split('\n');
   late DocumentTargets _targets = DocumentTargets(widget.blocks);
   int? _revealed;
+  var _reveals = 0;
   final _highlighted = <(CodeBlock, Brightness), TextSpan?>{};
   final _scrollController = ScrollController();
   final _listController = ListController();
@@ -145,8 +147,12 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.blocks != widget.blocks) {
       _rows = null;
-      _revealed = null;
-      _lines = widget.source.split('\n');
+      final lines = widget.source.split('\n');
+      _revealed = switch (_revealed) {
+        final line? => _movedLine(_lines, lines, line),
+        null => null,
+      };
+      _lines = lines;
       _targets = DocumentTargets(widget.blocks);
       _highlighted.clear();
     }
@@ -218,11 +224,15 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
   String _sourceOf(SourceRange range) =>
       _lines.sublist(range.start, range.end).join('\n');
 
-  Future<void> _commit(SourceRange range, String text) async {
-    scheduleMicrotask(() {
-      if (mounted && _revealed == range.start) setState(() => _revealed = null);
-    });
-    if (text != _sourceOf(range)) await widget.onEdit?.call(range, text);
+  Future<void> _commit(SourceRange range, String original, String text) async {
+    await Future<void>.microtask(() {});
+    if (mounted && _revealed == range.start) setState(() => _revealed = null);
+    if (text == original) return;
+    if (range.end > _lines.length || _sourceOf(range) != original) {
+      if (mounted) context.notify((l10n) => l10n.editNotApplied);
+      return;
+    }
+    await widget.onEdit?.call(range, text);
   }
 
   TextSpan _rawSpans(String text) =>
@@ -347,19 +357,22 @@ class NorgDocumentViewState extends State<NorgDocumentView> {
           tags,
           revealed
               ? SourceEditor(
-                  key: ValueKey(range.start),
+                  key: ValueKey(_reveals),
                   source: _sourceOf(range),
                   style: _style.base,
                   highlight: (text) => _rawSpans(text),
                   readOnly: widget.onEdit == null,
                   completions: widget.completions,
-                  onDone: (text) => _commit(range, text),
+                  onDone: (text) => _commit(range, _sourceOf(range), text),
                 )
               : _swipeable(
                   row,
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _revealed = range.start),
+                    onTap: () => setState(() {
+                      _revealed = range.start;
+                      _reveals++;
+                    }),
                     child: switch (row) {
                       _HeadingRow(:final heading) => _headingTitle(heading),
                       _ItemRow(:final item, :final ordinal, :final progress) =>
@@ -971,4 +984,21 @@ class _PrefixLongPress extends LongPressGestureRecognizer {
   @override
   bool isPointerAllowed(PointerDownEvent event) =>
       event.localPosition.dx <= zoneEnd && super.isPointerAllowed(event);
+}
+
+int? _movedLine(List<String> before, List<String> after, int line) {
+  final shortest = min(before.length, after.length);
+  var prefix = 0;
+  while (prefix < shortest && before[prefix] == after[prefix]) {
+    prefix++;
+  }
+  if (line < prefix) return line;
+  var suffix = 0;
+  while (suffix < shortest - prefix &&
+      before[before.length - 1 - suffix] == after[after.length - 1 - suffix]) {
+    suffix++;
+  }
+  return line >= before.length - suffix
+      ? line + after.length - before.length
+      : null;
 }

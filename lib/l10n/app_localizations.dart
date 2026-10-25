@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('es'),
   ];
 
+  /// No description provided for @editNotApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'The note changed while you were editing, so that change was not applied.'**
+  String get editNotApplied;
+
   /// No description provided for @themeLight.
   ///
   /// In en, this message translates to:

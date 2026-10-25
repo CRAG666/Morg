@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:pool/pool.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'edit_history.dart';
@@ -70,6 +71,8 @@ class _DocumentScreenState extends State<DocumentScreen> {
   DocumentTargets _targets = DocumentTargets(const []);
   Object? _error;
   final _history = EditHistory();
+  // One at a time, so a slow cloud save never lands after a newer one.
+  final _io = Pool(1);
   final _view = GlobalKey<NorgDocumentViewState>();
   late MorgConfig _config;
 
@@ -126,7 +129,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   Future<void> _load() async {
     try {
       final note = widget.note;
-      _show(await note.store.read(note.path));
+      _show(await _io.withResource(() => note.store.read(note.path)));
     } on FileSystemException catch (error) {
       if (mounted) setState(() => _error = error);
     }
@@ -149,10 +152,10 @@ class _DocumentScreenState extends State<DocumentScreen> {
         ? reindentChanges(previous, edited, dedentExcess: _config.dedentExcess)
         : edited;
     final written = touchUpdated(source, DateTime.now());
-    await note.store.write(note.path, written);
-    WorkspaceIndex.peek(note.store)?.updated(note.path, written);
     if (record && previous != null) _history.record(previous);
     _show(written);
+    WorkspaceIndex.peek(note.store)?.updated(note.path, written);
+    await _io.withResource(() => note.store.write(note.path, written));
   }
 
   Future<void> _restore(String? Function(String current) step) async {
