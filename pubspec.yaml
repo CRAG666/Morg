@@ -1,7 +1,7 @@
 name: morg
 description: "Mobile viewer and editor for Norg (Neorg) notes."
 publish_to: 'none'
-version: 1.2.3+24
+version: 1.2.4+25
 
 environment:
   sdk: ^3.13.5
