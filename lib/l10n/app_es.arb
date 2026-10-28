@@ -147,5 +147,12 @@
   "noteDeleted": "{name} eliminada",
   "deleteFailed": "No se pudo eliminar: {error}",
   "refresh": "Actualizar",
-  "repeatsOn": "Se repite {date}"
+  "repeatsOn": "Se repite {date}",
+  "about": "Acerca de",
+  "aboutMorg": "Acerca de Morg",
+  "appVersion": "Versión {version}",
+  "appDescription": "Visor y editor móvil de notas Norg (Neorg).",
+  "developedBy": "Desarrollado por {name}",
+  "sourceCode": "Código fuente",
+  "reportProblem": "Reportar un problema"
 }

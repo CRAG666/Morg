@@ -985,6 +985,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Repeats {date}'**
   String repeatsOn(String date);
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @aboutMorg.
+  ///
+  /// In en, this message translates to:
+  /// **'About Morg'**
+  String get aboutMorg;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String appVersion(String version);
+
+  /// No description provided for @appDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile viewer and editor for Norg (Neorg) notes.'**
+  String get appDescription;
+
+  /// No description provided for @developedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Developed by {name}'**
+  String developedBy(String name);
+
+  /// No description provided for @sourceCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Source code'**
+  String get sourceCode;
+
+  /// No description provided for @reportProblem.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem'**
+  String get reportProblem;
 }
 
 class _AppLocalizationsDelegate

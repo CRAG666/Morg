@@ -17,6 +17,7 @@ dependencies:
   intl: any
   jovial_svg: ^1.1.31
   open_filex: ^5.0.0
+  package_info_plus: ^10.2.2
   path: ^1.9.1
   path_provider: ^2.1.6
   permission_handler: ^13.0.2
@@ -41,6 +42,7 @@ flutter:
     - assets/docs/
     - assets/config/
     - assets/themes/
+    - assets/icon/icon.svg
 
   fonts:
     - family: JetBrainsMono

@@ -511,4 +511,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String repeatsOn(String date) {
     return 'Repeats $date';
   }
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get aboutMorg => 'About Morg';
+
+  @override
+  String appVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get appDescription =>
+      'Mobile viewer and editor for Norg (Neorg) notes.';
+
+  @override
+  String developedBy(String name) {
+    return 'Developed by $name';
+  }
+
+  @override
+  String get sourceCode => 'Source code';
+
+  @override
+  String get reportProblem => 'Report a problem';
 }

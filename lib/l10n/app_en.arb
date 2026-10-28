@@ -331,5 +331,26 @@
         "type": "String"
       }
     }
-  }
+  },
+  "about": "About",
+  "aboutMorg": "About Morg",
+  "appVersion": "Version {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appDescription": "Mobile viewer and editor for Norg (Neorg) notes.",
+  "developedBy": "Developed by {name}",
+  "@developedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sourceCode": "Source code",
+  "reportProblem": "Report a problem"
 }

@@ -2,6 +2,10 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:jovial_svg/jovial_svg.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'editor_screen.dart';
 import 'l10n/l10n.dart';
@@ -14,6 +18,10 @@ const _metagen = ['load', 'core.esupports.metagen', 'config'];
 const _dirman = ['load', 'core.dirman', 'config'];
 const _journal = ['load', 'core.journal', 'config'];
 const _indent = ['load', 'core.esupports.indent', 'config'];
+const _developer = 'Crag';
+const _profile = 'https://github.com/CRAG666';
+const _repository = '$_profile/Morg';
+final _packageInfo = PackageInfo.fromPlatform();
 
 Future<void> _apply(
   BuildContext context,
@@ -211,10 +219,77 @@ class SettingsScreen extends StatelessWidget {
             title: Text(l10n.restoreDefaults),
             onTap: () => _reset(context),
           ),
+          _Section(l10n.about),
+          const _AboutTile(),
         ],
       ),
     );
   }
+}
+
+class _AboutTile extends StatelessWidget {
+  const _AboutTile();
+
+  Future<void> _open(BuildContext context, String url) async {
+    final opened = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && context.mounted) {
+      context.notify((l10n) => l10n.couldNotOpen(url));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder(
+    future: _packageInfo,
+    builder: (context, snapshot) {
+      final l10n = context.l10n;
+      final version = switch (snapshot.data) {
+        final info? => '${info.version} (${info.buildNumber})',
+        null => null,
+      };
+      return ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: Text(l10n.aboutMorg),
+        subtitle: version == null ? null : Text(l10n.appVersion(version)),
+        onTap: () => showAboutDialog(
+          context: context,
+          applicationName: 'Morg',
+          applicationVersion: version,
+          applicationIcon: SizedBox.square(
+            dimension: 56,
+            child: ScalableImageWidget.fromSISource(
+              si: ScalableImageSource.fromSvg(
+                rootBundle,
+                'assets/icon/icon.svg',
+              ),
+            ),
+          ),
+          applicationLegalese: l10n.appDescription,
+          children: [
+            const SizedBox(height: 16),
+            Text(l10n.developedBy(_developer)),
+            for (final (icon, label, url) in [
+              (Icons.person_outline, 'github.com/CRAG666', _profile),
+              (Icons.code, l10n.sourceCode, _repository),
+              (
+                Icons.bug_report_outlined,
+                l10n.reportProblem,
+                '$_repository/issues',
+              ),
+            ])
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(icon),
+                title: Text(label),
+                onTap: () => _open(context, url),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _Section extends StatelessWidget {
